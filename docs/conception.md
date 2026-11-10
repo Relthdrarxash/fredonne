@@ -4,11 +4,11 @@ Ce document fixe les choix avant d'écrire du code. Il évoluera avec le projet.
 
 ## Public visé
 
-Chanteurs, chorales, harmonies et fanfares, élèves de conservatoire, instrumentistes qui transposent (clarinette, saxophone, trompette, cor) ou jouent avec un capodastre. Besoin commun : noter ou changer une mélodie simple en quelques secondes, sans compte ni abonnement.
+Chanteurs, chorales, harmonies et fanfares, élèves de conservatoire, instrumentistes qui transposent (clarinette, saxophone, trompette, cor) ou jouent avec un capodastre, étudiants et interprètes de musique contemporaine. Besoin commun : noter, vérifier ou changer une mélodie en quelques secondes, sans compte ni abonnement.
 
 ## Promesse
 
-Écris ou transpose une mélodie en quelques secondes, sans connexion.
+Écris, vérifie ou transpose une mélodie en quelques secondes, sans connexion.
 
 ## Saisie
 
@@ -27,32 +27,89 @@ Règles issues de la recherche en interaction homme-machine sur les éditeurs de
 
 ## Transposition
 
-Une fois la mélodie en données, transposer revient à décaler les hauteurs et changer l'armure. Cas à traiter : choix de la tonalité d'arrivée, intervalle libre, instruments transpositeurs, gestion des altérations (dièses ou bémols selon la tonalité d'arrivée), tessiture indicative. Logique en Kotlin pur dans `core:music`, avec tests unitaires.
+Une fois la mélodie en données, transposer revient à décaler les hauteurs et changer l'armure. Cas à traiter : choix de la tonalité d'arrivée, intervalle libre, instruments transpositeurs, orthographe des altérations (dièses ou bémols selon la tonalité d'arrivée), tessiture indicative. Logique en Kotlin pur dans `core:music`, avec tests unitaires.
+
+## Vérificateur en toile de fond
+
+La musique écrite est très codifiée : beaucoup de règles se vérifient par le calcul. Le vérificateur fonctionne comme un correcteur orthographique : il souligne, il ne bloque jamais.
+
+Vérifications calculables, par niveaux :
+
+1. Durées : le total de chaque mesure correspond au chiffrage. Calcul en fractions exactes (entiers), jamais en décimaux.
+2. Tessiture : les notes restent dans l'étendue de l'instrument choisi.
+3. Orthographe : altérations cohérentes avec la tonalité, y compris après transposition (Fa dièse ou Sol bémol).
+4. Plus tard, avec plusieurs voix : quintes et octaves parallèles, sauts excessifs, croisements de voix.
+
+Ce qui relève du goût (une quinte parallèle est parfois voulue) reste un avertissement que l'on peut ignorer, jamais une erreur. Le vérificateur vit dans `core:music`, avec des tests par règle.
+
+## Modulation métrique et rapports de tempo
+
+Dans la musique contemporaine, un changement de tempo est souvent défini par une équivalence entre une valeur de l'ancien tempo et une valeur du nouveau (modulation métrique, notamment chez Elliott Carter). Le nouveau tempo est donc un rapport exact de l'ancien, et les applis de suivi obligent aujourd'hui à le recalculer à la main.
+
+Exemples :
+- noire = 60 ; le triolet de croches devient la nouvelle croche : noire = 90 (rapport 3:2) ;
+- noire = 60 ; le quintolet de doubles croches devient la nouvelle double croche : noire = 75 (rapport 5:4).
+
+Fonctions prévues :
+- calcul du nouveau tempo à partir de l'équivalence indiquée (« valeur de l'ancien tempo = valeur du nouveau ») ;
+- affichage des deux notations ;
+- vérification que les durées écrites sont cohérentes avec le tempo ;
+- chiffrages irréguliers (5/8, 7/16, mesures composées) et tuplets imbriqués.
+
+Tout se calcule en fractions exactes. MusicXML sait coder les tuplets (`time-modification`) et les indications métronomiques, donc l'export reste compatible. À valider avec un instrumentiste de musique contemporaine avant de figer l'interface.
 
 ## Formats
 
 - MusicXML (import et export), y compris le format compressé `.mxl` en lecture.
 - MIDI (import et export).
+- PDF (export et impression, sans filigrane).
 - ABC en lecture, plus tard.
 - Aucune permission de stockage : sélecteur de fichiers et partage Android.
 
 ## Sauvegarde
 
-Pas de sauvegarde automatique dans le cloud. L'utilisateur exporte ses partitions et peut les passer d'un téléphone à l'autre.
+Pas de sauvegarde automatique dans le cloud. L'utilisateur exporte ses partitions et peut les passer d'un téléphone à l'autre. Historique des versions conservé localement.
 
 ## Rendu de la portée
 
 Dessiné dans Compose avec la police Bravura (SMuFL, licence SIL OFL). Première version limitée aux mélodies à une voix.
 
+## Ce que les grandes applis font payer, et ce qu'on fait gratuitement
+
+D'après les pages des stores et les avis consultés en novembre 2026. Les plaintes les plus fréquentes portent sur la facturation, les abonnements et les relances d'achat.
+
+| Fonction | Ailleurs | Dans Fredonne |
+|---|---|---|
+| Nombre de partitions | Limité en gratuit (Flat) | Illimité, local |
+| Instruments supplémentaires | Abonnement (Flat) | Tous inclus |
+| Historique des versions | Abonnement avec cloud (Flat) | Local, gratuit |
+| Export et impression sans filigrane | Abonnement (Flat) | Gratuit |
+| Éditer, télécharger, imprimer | Abonnement (MuseScore mobile) | Gratuit |
+| Changer la tonalité | Dans l'abonnement | Gratuit |
+| Compte et cloud | Nécessaire | Aucun |
+
+Ce que Fredonne ne fera pas : cloud, collaboration en temps réel, bibliothèque de partitions en ligne.
+
 ## Feuille de route
 
-1. Modèle musical, transposition et tests (`core:music`).
-2. Lecture et écriture MusicXML et MIDI.
-3. Rendu de la portée et lecture sonore.
-4. Saisie tactile.
-5. Fiche Play, site, test interne puis fermé.
-6. Plus tard : accords, deuxième portée, paroles, ABC. Scan de partitions seulement s'il respecte les principes du projet.
+Chaque étape se termine par une version testable sur le test interne de Google Play.
 
-## Idées à valider avant de construire
+1. **Fondations (`core:music`)** : modèle musical en fractions exactes, transposition, vérificateur de durées et de tessiture, tests unitaires.
+2. **Formats** : lecture et écriture MusicXML et MIDI.
+3. **Rendu et son** : portée dessinée, lecture par le synthétiseur MIDI, retour sonore à chaque note.
+4. **Saisie tactile** : curseur, durées, mini clavier, correction par glissement, annuler et rétablir.
+5. **Version 1.0** : mélodie à une voix, transposition avec instruments transpositeurs, vérificateur de mesures, export MusicXML, MIDI et PDF, historique local. Fiche Play, site, test fermé.
+6. **Version 1.x** : orthographe après transposition, capodastre, partage, impression, retours des testeurs.
+7. **Version 2** : modulation métrique, chiffrages irréguliers et tuplets, deuxième voix avec vérification harmonique, chiffrages d'accords, paroles.
+8. **Plus tard** : deuxième portée, lecture ABC, étude du scan de partitions (modèle embarqué, jamais de serveur).
 
-Tester la promesse auprès de quelques musiciens (chanteurs, instrumentistes transpositeurs), lire les avis récents de Flat et de Notion Mobile sur Google Play, et vérifier la disponibilité du nom sur le Play Store.
+## Mesurer la qualité
+
+- Questionnaire d'utilisabilité standard (SUS), utilisé dans l'enquête sur les éditeurs de partitions, auprès des testeurs du test fermé.
+- Nombre de gestes et temps pour saisir une mélodie de référence, mesurés sur quelques parcours.
+- Tests auprès de musiciens de profils variés : chanteurs, instrumentistes transpositeurs, un instrumentiste de musique contemporaine.
+- Le test fermé de Google Play exige au moins 12 testeurs pendant 14 jours : s'appuyer sur des chorales, harmonies et classes de conservatoire.
+
+## Avant de construire
+
+Tester la promesse auprès de quelques musiciens, lire les avis récents de Flat et de Notion Mobile sur Google Play, vérifier la disponibilité du nom sur le Play Store.
