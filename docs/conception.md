@@ -58,6 +58,33 @@ Fonctions prévues :
 
 Tout se calcule en fractions exactes. MusicXML sait coder les tuplets (`time-modification`) et les indications métronomiques, donc l'export reste compatible. À valider avec un instrumentiste de musique contemporaine avant de figer l'interface.
 
+## Mode étude
+
+Pour toucher le plus de monde possible, Fredonne ne sert pas seulement à écrire : il aide à travailler un passage. Les options sont les mêmes pour tous (élève, choriste, instrumentiste de musique contemporaine) et restent hors ligne. Chaque option est facultative et cachée tant qu'on ne l'ouvre pas, pour ne pas alourdir l'écriture.
+
+Simplifier un passage :
+- rythme seul ou hauteurs seules (l'autre dimension est masquée) ;
+- remplacer les groupes irréguliers par des valeurs régulières pour apprendre d'abord les hauteurs ;
+- version « squelette » qui garde les notes des temps forts ;
+- ramener un passage dans une tessiture confortable par changement d'octave.
+
+Travailler le tempo :
+- boucle sur quelques mesures, avec tempo qui monte par paliers (par exemple +5 à chaque tour) ;
+- décompte avant le départ ;
+- métronome programmable qui enchaîne changements de mesure et de tempo, y compris les modulations métriques ;
+- subdivisions comptées sous les notes, utiles dans les mesures irrégulières ;
+- boucles nommées, retrouvées à la séance suivante.
+
+Travailler les tonalités :
+- faire passer un motif dans les 12 tonalités ou en suivant le cycle des quintes, avec la transposition de l'appli ;
+- découper une phrase en cellules à répéter puis à enchaîner.
+
+Annotations : respirations, doigtés, repères de travail par mesure.
+
+Un convertisseur métrique complète la modulation métrique : on choisit une zone, on indique un rapport (3:2, par exemple), et les mesures et les durées sont réécrites en conséquence. Les forums de MuseScore montrent que ce besoin est réel et mal servi.
+
+Ces fonctions viennent de demandes lues sur des forums de musiciens et d'applications d'entraînement, surtout jazz et débutants. Leur priorité réelle reste à confirmer avec des instrumentistes, notamment en musique contemporaine (voir le questionnaire).
+
 ## Formats
 
 - MusicXML (import et export), y compris le format compressé `.mxl` en lecture.
@@ -100,7 +127,7 @@ Chaque étape se termine par une version testable sur le test interne de Google 
 4. **Saisie tactile** : curseur, durées, mini clavier, correction par glissement, annuler et rétablir.
 5. **Version 1.0** : mélodie à une voix, transposition avec instruments transpositeurs, vérificateur de mesures, export MusicXML, MIDI et PDF, historique local. Fiche Play, site, test fermé.
 6. **Version 1.x** : orthographe après transposition, capodastre, partage, impression, retours des testeurs.
-7. **Version 2** : modulation métrique, chiffrages irréguliers et tuplets, deuxième voix avec vérification harmonique, chiffrages d'accords, paroles.
+7. **Version 2** : modulation métrique et convertisseur métrique, chiffrages irréguliers et tuplets, mode étude (boucle, tempo progressif, simplifications, 12 tonalités), deuxième voix avec vérification harmonique, chiffrages d'accords, paroles.
 8. **Plus tard** : deuxième portée, lecture ABC, étude du scan de partitions (modèle embarqué, jamais de serveur).
 
 ## Mesurer la qualité
@@ -113,3 +140,11 @@ Chaque étape se termine par une version testable sur le test interne de Google 
 ## Avant de construire
 
 Tester la promesse auprès de quelques musiciens, lire les avis récents de Flat et de Notion Mobile sur Google Play, vérifier la disponibilité du nom sur le Play Store.
+
+## Direction visuelle
+
+Voir les [maquettes](maquettes/README.md).
+
+- Couleurs : papier `#FBF8F2`, encre `#1E1B18`, accent terracotta `#C0432A`, ambre `#8F5200` pour les avertissements du vérificateur, vert `#2D6A4F` pour la validation.
+- Polices : Newsreader (titres), Figtree (interface), Bravura (portée). Toutes sous licence libre (SIL OFL).
+- Principes : une seule couleur d'accent, cibles de 44 px au minimum, contraste d'au moins 4,5:1, clavier sous le pouce, aucune information qui ne soit portée que par la couleur.
