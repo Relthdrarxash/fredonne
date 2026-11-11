@@ -14,3 +14,4 @@ dependencyResolutionManagement {
 rootProject.name = "fredonne"
 
 include(":core:music")
+include(":core:engraving")

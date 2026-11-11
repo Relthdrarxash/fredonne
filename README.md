@@ -45,7 +45,8 @@ Modulation métrique et rapports de tempo, mode étude (boucle, tempo progressif
 | Tests | `kotlin.test` et JUnit 5, lancés par GitHub Actions à chaque envoi | En place |
 | Build | Gradle (Kotlin DSL) | En place |
 | Interface | Jetpack Compose | Prévu |
-| Portée | Dessinée dans Compose avec la police Bravura (SMuFL, licence SIL OFL) | Prévu |
+| Mise en page de la portée | Kotlin pur (`core:engraving`) : position des notes, hampes, lignes supplémentaires, altérations à afficher, armure, espacement, passage à la ligne, positions du curseur | En place |
+| Dessin de la portée | Dans Compose avec la police Bravura (SMuFL, licence SIL OFL), à partir de la mise en page | Prévu |
 | Son | Synthétiseur MIDI d'Android, échantillons libres de droits à l'étude | Prévu |
 | Formats | MusicXML en lecture et en écriture (parties d'instruments transpositeurs comprises), MIDI en écriture | En place |
 | Tempo | Modulation métrique calculée en fractions exactes (noire = 60, triolet de croches = croche : noire = 90) | En place |
@@ -58,7 +59,7 @@ Choix de fond : peu de dépendances, aucune bibliothèque publicitaire ou de sta
 | Module | Rôle |
 |---|---|
 | `core:music` | Modèle musical, transposition, lecture et écriture MusicXML et MIDI. Kotlin pur, couvert par des tests |
-| `core:engraving` | Mise en page de la portée à partir du modèle |
+| `core:engraving` | Mise en page de la portée à partir du modèle : ce qu'il faut dessiner et où. Kotlin pur, couvert par des tests |
 | `app` | Interface Jetpack Compose, saisie, lecture sonore |
 
 Détails et choix de conception dans [`docs/conception.md`](docs/conception.md).
