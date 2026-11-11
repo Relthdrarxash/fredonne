@@ -47,7 +47,9 @@ Modulation métrique et rapports de tempo, mode étude (boucle, tempo progressif
 | Interface | Jetpack Compose | Prévu |
 | Portée | Dessinée dans Compose avec la police Bravura (SMuFL, licence SIL OFL) | Prévu |
 | Son | Synthétiseur MIDI d'Android, échantillons libres de droits à l'étude | Prévu |
-| Formats | MusicXML, MIDI, PDF | Prévu |
+| Formats | MusicXML en lecture et en écriture (parties d'instruments transpositeurs comprises), MIDI en écriture | En place |
+| Tempo | Modulation métrique calculée en fractions exactes (noire = 60, triolet de croches = croche : noire = 90) | En place |
+| Formats à venir | Lecture MIDI, MusicXML compressé (`.mxl`), PDF | Prévu |
 
 Choix de fond : peu de dépendances, aucune bibliothèque publicitaire ou de statistiques, aucune permission Internet, fichiers ouverts par le sélecteur d'Android sans permission de stockage. Le moteur musical est séparé de l'interface pour pouvoir être testé sans téléphone.
 
