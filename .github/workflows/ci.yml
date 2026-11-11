@@ -17,5 +17,5 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.10.2"
-      - name: Tests du moteur musical
-        run: gradle :core:music:test --console=plain
+      - name: Tests du moteur musical et de la mise en page
+        run: gradle test --console=plain
