@@ -16,12 +16,14 @@ Appli Android libre pour écrire une mélodie sur son téléphone et la transpos
 - Saisie d'une mélodie à une voix : curseur d'insertion, rangée de durées, mini clavier de piano, correction par glissement
 - Lecture par le synthétiseur MIDI du téléphone, avec retour sonore à chaque note
 - Transposition vers une autre tonalité ou par intervalle, avec les instruments transpositeurs (Si bémol, Mi bémol, Fa)
+- Vérificateur en toile de fond : durées de chaque mesure, tessiture de l'instrument, orthographe des altérations (il souligne, il ne bloque pas)
+- Export PDF sans filigrane, partitions en nombre illimité, historique local
 - Import et export de fichiers MusicXML et MIDI, par le sélecteur de fichiers Android (sans autorisation de stockage)
 - Annuler et rétablir sans limite, mode paysage, zoom
 
 ## Hors périmètre pour l'instant
 
-Scan de partitions par photo, partitions d'orchestre, deuxième portée, accords, paroles. Le scan demande un modèle de reconnaissance embarqué ou un serveur : il ne sera étudié que s'il respecte les principes ci-dessus.
+Modulation métrique et rapports de tempo (prévus pour la version 2, pour la musique contemporaine), scan de partitions par photo, partitions d'orchestre, deuxième portée, accords, paroles. Le scan demande un modèle de reconnaissance embarqué ou un serveur : il ne sera étudié que s'il respecte les principes ci-dessus.
 
 ## Architecture prévue
 
