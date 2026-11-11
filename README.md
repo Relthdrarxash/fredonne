@@ -30,7 +30,7 @@ Appli Android libre pour écrire une mélodie sur son téléphone et la transpos
 
 ## Hors périmètre pour l'instant
 
-Modulation métrique et rapports de tempo (prévus pour la version 2, pour la musique contemporaine), scan de partitions par photo, partitions d'orchestre, deuxième portée, accords, paroles. Le scan demande un modèle de reconnaissance embarqué ou un serveur : il ne sera étudié que s'il respecte les principes ci-dessus.
+Modulation métrique et rapports de tempo, mode étude (boucle, tempo progressif, simplification d'un passage, travail dans les 12 tonalités), prévus pour la version 2 ; scan de partitions par photo, partitions d'orchestre, deuxième portée, accords, paroles. Le scan demande un modèle de reconnaissance embarqué ou un serveur : il ne sera étudié que s'il respecte les principes ci-dessus.
 
 ## Ce qu'on utilise
 
