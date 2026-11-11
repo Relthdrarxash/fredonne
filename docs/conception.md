@@ -113,3 +113,11 @@ Chaque étape se termine par une version testable sur le test interne de Google 
 ## Avant de construire
 
 Tester la promesse auprès de quelques musiciens, lire les avis récents de Flat et de Notion Mobile sur Google Play, vérifier la disponibilité du nom sur le Play Store.
+
+## Direction visuelle
+
+Voir les [maquettes](maquettes/README.md).
+
+- Couleurs : papier `#FBF8F2`, encre `#1E1B18`, accent terracotta `#C0432A`, ambre `#8F5200` pour les avertissements du vérificateur, vert `#2D6A4F` pour la validation.
+- Polices : Newsreader (titres), Figtree (interface), Bravura (portée). Toutes sous licence libre (SIL OFL).
+- Principes : une seule couleur d'accent, cibles de 44 px au minimum, contraste d'au moins 4,5:1, clavier sous le pouce, aucune information qui ne soit portée que par la couleur.
