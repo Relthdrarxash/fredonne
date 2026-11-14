@@ -67,12 +67,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
@@ -133,7 +136,33 @@ class MainActivity : ComponentActivity() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FredonneApp() {
-    var state by remember { mutableStateOf(EditorState()) }
+    val context = LocalContext.current
+    val prefs = remember { FredonnePrefs(context) }
+    var onboarded by remember { mutableStateOf(prefs.onboarded) }
+    var state by remember {
+        mutableStateOf(
+            EditorState(instrument = prefs.preferredInstrumentId?.let(Instruments::byId))
+        )
+    }
+
+    if (!onboarded) {
+        OnboardingScreen(
+            initialInstrument = state.instrument,
+            onFinish = { instrument, withSample ->
+                prefs.preferredInstrumentId = instrument?.id
+                prefs.onboarded = true
+                state = EditorState(
+                    melody = if (withSample) EditorState.sampleMelody() else EditorState.defaultMelody(),
+                    instrument = instrument,
+                    cursorMeasure = if (withSample) 1 else 0,
+                    cursorEventIndex = if (withSample) 3 else 0,
+                )
+                onboarded = true
+            },
+        )
+        return
+    }
+
     val player = remember { TonePlayer() }
     var isPlaying by remember { mutableStateOf(false) }
     var playingPosition by remember { mutableStateOf<Pair<Int, Int>?>(null) }
@@ -221,6 +250,15 @@ fun FredonneApp() {
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            AccentSage.copy(alpha = 0.08f),
+                            PaperBg,
+                            Color(0xFFF3EFE6),
+                        ),
+                    )
+                )
                 .padding(padding)
                 .padding(horizontal = 12.dp, vertical = 4.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -281,6 +319,7 @@ fun FredonneApp() {
                     .weight(1f),
                 shape = RoundedCornerShape(14.dp),
                 color = CardBg,
+                shadowElevation = 2.dp,
                 border = BorderStroke(1.dp, Color(0xFFE0DDD5)),
             ) {
                 Column(modifier = Modifier.fillMaxSize()) {
@@ -816,6 +855,7 @@ private fun PianoKeyboard(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(126.dp)
+                .shadow(3.dp, RoundedCornerShape(10.dp))
                 .clip(RoundedCornerShape(10.dp))
                 .border(1.dp, Color(0xFFD5D1C7), RoundedCornerShape(10.dp)),
         ) {
@@ -826,7 +866,11 @@ private fun PianoKeyboard(
                         modifier = Modifier
                             .width(whiteWidth)
                             .fillMaxHeight()
-                            .background(Color.White)
+                            .background(
+                                Brush.verticalGradient(
+                                    colors = listOf(Color(0xFFF6F4EE), Color.White, Color(0xFFEDEAE2)),
+                                )
+                            )
                             .border(0.5.dp, Color(0xFFD8D5CC))
                             .clickable { onKeyPressed(pitch) }
                             .padding(bottom = 6.dp),
@@ -849,8 +893,13 @@ private fun PianoKeyboard(
                         .offset(x = leftOffset)
                         .width(blackWidth)
                         .fillMaxHeight(0.58f)
+                        .shadow(2.dp, RoundedCornerShape(bottomStart = 5.dp, bottomEnd = 5.dp))
                         .clip(RoundedCornerShape(bottomStart = 5.dp, bottomEnd = 5.dp))
-                        .background(Color(0xFF23221E))
+                        .background(
+                            Brush.verticalGradient(
+                                colors = listOf(Color(0xFF34322D), Color(0xFF1A1916)),
+                            )
+                        )
                         .clickable { onKeyPressed(pitch) },
                 )
             }
@@ -961,6 +1010,127 @@ private fun InstrumentDialog(
             TextButton(onClick = onDismiss) { Text("Fermer") }
         },
     )
+}
+
+@Composable
+private fun OnboardingScreen(
+    initialInstrument: Instrument?,
+    onFinish: (Instrument?, withSample: Boolean) -> Unit,
+) {
+    var step by remember { mutableIntStateOf(0) }
+    var chosenInstrument by remember { mutableStateOf(initialInstrument) }
+    val quickInstruments: List<Instrument?> = listOf(
+        null,
+        Instruments.FLUTE,
+        Instruments.CLARINET_BB,
+        Instruments.SAX_ALTO,
+        Instruments.TRUMPET_BB,
+        Instruments.HORN_F,
+        Instruments.VIOLIN,
+    )
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                Brush.verticalGradient(
+                    colors = listOf(
+                        AccentSage.copy(alpha = 0.12f),
+                        PaperBg,
+                        Color(0xFFF3EFE6),
+                    ),
+                )
+            )
+            .padding(24.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(18.dp),
+            color = CardBg,
+            shadowElevation = 3.dp,
+            border = BorderStroke(1.dp, Color(0xFFE0DDD5)),
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
+                Text(
+                    text = if (step == 0) "Bienvenue dans Fredonne" else "Votre instrument de départ",
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = InkColor,
+                )
+                if (step == 0) {
+                    Text(
+                        text = "Un bloc-notes mélodique à une voix pour saisir vos idées au clavier virtuel, les écouter aussitôt et transposer sans effort.",
+                        fontSize = 15.sp,
+                        color = MutedInk,
+                        lineHeight = 22.sp,
+                    )
+                    Text(
+                        text = "100 % hors-ligne : aucune permission réseau, aucun compte, aucun traceur. Les règles de solfège vérifient mesures et tessiture sans jamais vous bloquer.",
+                        fontSize = 14.sp,
+                        color = MutedInk,
+                        lineHeight = 20.sp,
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End,
+                    ) {
+                        androidx.compose.material3.Button(onClick = { step = 1 }) {
+                            Text("Continuer")
+                        }
+                    }
+                } else {
+                    Text(
+                        text = "La portée affichera automatiquement l'écriture transposée pour cet instrument (modifiable à tout moment).",
+                        fontSize = 14.sp,
+                        color = MutedInk,
+                    )
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(210.dp)
+                            .verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        quickInstruments.forEach { inst ->
+                            val selected = chosenInstrument?.id == inst?.id
+                            OutlinedButton(
+                                onClick = { chosenInstrument = inst },
+                                modifier = Modifier.fillMaxWidth(),
+                                border = BorderStroke(1.dp, if (selected) AccentSage else Color(0xFFD5D1C7)),
+                            ) {
+                                Text(
+                                    text = inst?.let { instrumentLabel(it) } ?: "Concert (Ut, sons réels)",
+                                    color = if (selected) AccentSage else InkColor,
+                                )
+                            }
+                        }
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        OutlinedButton(
+                            onClick = { onFinish(chosenInstrument, false) },
+                            modifier = Modifier.weight(1f),
+                        ) {
+                            Text("Portée vierge")
+                        }
+                        androidx.compose.material3.Button(
+                            onClick = { onFinish(chosenInstrument, true) },
+                            modifier = Modifier.weight(1f),
+                        ) {
+                            Text("Avec exemple")
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 @Composable
