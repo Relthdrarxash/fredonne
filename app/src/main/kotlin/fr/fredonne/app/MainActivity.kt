@@ -135,13 +135,16 @@ class MainActivity : ComponentActivity() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun FredonneApp() {
+fun FredonneApp(
+    initialOnboarded: Boolean? = null,
+    initialEditorState: EditorState? = null,
+) {
     val context = LocalContext.current
     val prefs = remember { FredonnePrefs(context) }
-    var onboarded by remember { mutableStateOf(prefs.onboarded) }
+    var onboarded by remember { mutableStateOf(initialOnboarded ?: prefs.onboarded) }
     var state by remember {
         mutableStateOf(
-            EditorState(instrument = prefs.preferredInstrumentId?.let(Instruments::byId))
+            initialEditorState ?: EditorState(instrument = prefs.preferredInstrumentId?.let(Instruments::byId))
         )
     }
 

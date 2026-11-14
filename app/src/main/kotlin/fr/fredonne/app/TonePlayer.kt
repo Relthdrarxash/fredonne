@@ -43,7 +43,33 @@ class TonePlayer {
         stop()
         playing.set(true)
         thread(isDaemon = true) {
+            val minBuf = AudioTrack.getMinBufferSize(
+                sampleRate,
+                AudioFormat.CHANNEL_OUT_MONO,
+                AudioFormat.ENCODING_PCM_16BIT,
+            ).coerceAtLeast(4096)
+            val track = runCatching {
+                AudioTrack.Builder()
+                    .setAudioAttributes(
+                        AudioAttributes.Builder()
+                            .setUsage(AudioAttributes.USAGE_MEDIA)
+                            .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                            .build()
+                    )
+                    .setAudioFormat(
+                        AudioFormat.Builder()
+                            .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+                            .setSampleRate(sampleRate)
+                            .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
+                            .build()
+                    )
+                    .setBufferSizeInBytes(minBuf * 2)
+                    .setTransferMode(AudioTrack.MODE_STREAM)
+                    .build()
+            }.getOrNull()
+
             try {
+                track?.play()
                 // La noire (1/4 de ronde) dure 60_000 / bpm ms, donc la ronde dure 4 * 60_000 / bpm ms.
                 val wholeMs = (4.0 * 60_000.0) / bpm.coerceAtLeast(30)
                 melody.measures.forEachIndexed { mIdx, measure ->
@@ -55,10 +81,18 @@ class TonePlayer {
                             is Note -> synthesizeTone(midiToFreq(event.pitch.midi), eventMs)
                             else -> ShortArray((sampleRate * eventMs) / 1000)
                         }
-                        playPcm(pcm, checkStop = true)
+                        if (track != null) {
+                            track.write(pcm, 0, pcm.size, AudioTrack.WRITE_BLOCKING)
+                        } else {
+                            Thread.sleep(eventMs.toLong())
+                        }
                     }
                 }
+                track?.stop()
+            } catch (_: Throwable) {
+                // Ignorer proprement sur périphérique audio indisponible
             } finally {
+                runCatching { track?.release() }
                 playing.set(false)
                 onFinished()
             }
@@ -111,23 +145,33 @@ class TonePlayer {
     private fun synthesizeTone(freqHz: Double, durationMs: Int): ShortArray {
         val count = (sampleRate * durationMs) / 1000
         val out = ShortArray(count)
-        val attackSamples = (sampleRate * 0.012).toInt().coerceAtLeast(1)
-        val releaseSamples = (sampleRate * 0.045).toInt().coerceAtLeast(1)
+        val attackSamples = (sampleRate * 0.010).toInt().coerceAtLeast(1)
+        val releaseSamples = (sampleRate * 0.055).toInt().coerceAtLeast(1).coerceAtMost(count / 2 + 1)
         for (i in 0 until count) {
             val t = i.toDouble() / sampleRate
-            val fundamental = sin(2.0 * PI * freqHz * t)
-            val harmonic2 = 0.28 * sin(2.0 * PI * freqHz * 2.0 * t)
-            val harmonic3 = 0.10 * sin(2.0 * PI * freqHz * 3.0 * t)
-            val decay = exp(-2.2 * t)
+            val w = 2.0 * PI * freqHz * t
+            // Synthèse additive à extinction progressive des harmoniques (timbre doux type piano/harpe)
+            val h1 = sin(w) * exp(-1.8 * t)
+            val h2 = 0.32 * sin(2.0 * w) * exp(-3.8 * t)
+            val h3 = 0.14 * sin(3.0 * w) * exp(-6.2 * t)
+            val h4 = 0.05 * sin(4.0 * w) * exp(-9.5 * t)
 
-            val attackEnv = if (i < attackSamples) i.toDouble() / attackSamples else 1.0
+            val attackEnv = if (i < attackSamples) {
+                val p = i.toDouble() / attackSamples
+                val s = sin(p * (PI / 2.0))
+                s * s
+            } else {
+                1.0
+            }
             val releaseEnv = if (i > count - releaseSamples) {
-                (count - i).toDouble().coerceAtLeast(0.0) / releaseSamples
+                val p = (count - i).toDouble().coerceAtLeast(0.0) / releaseSamples
+                val s = sin(p * (PI / 2.0))
+                s * s
             } else {
                 1.0
             }
 
-            val sample = (fundamental + harmonic2 + harmonic3) * 0.36 * decay * attackEnv * releaseEnv
+            val sample = (h1 + h2 + h3 + h4) * 0.40 * attackEnv * releaseEnv
             out[i] = (sample * Short.MAX_VALUE).toInt().coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt()).toShort()
         }
         return out

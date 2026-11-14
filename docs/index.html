@@ -78,6 +78,11 @@ h2 { font-size: clamp(1.6rem, 4vw, 2.2rem); line-height: 1.12; letter-spacing: -
 .card a { color: var(--accent); text-decoration: none; font-weight: 700; }
 .card a:hover { text-decoration: underline; }
 
+.shots { display: flex; gap: 18px; overflow-x: auto; padding: 8px 0 16px; }
+.shots figure { margin: 0; flex: none; width: 220px; max-width: 66vw; display: grid; gap: 8px; }
+.shots img { width: 100%; height: auto; border-radius: 22px; border: 1px solid var(--line); box-shadow: 0 14px 32px rgba(0,0,0,.22); display: block; }
+.shots figcaption { font-size: 0.88rem; color: var(--muted); text-align: center; }
+
 .rules { display: grid; gap: 0; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); border-top: 1px solid var(--line); list-style: none; padding: 0; margin: 0; }
 .rules li { padding: 16px 16px 16px 0; border-bottom: 1px solid var(--line); min-width: 0; }
 .rules strong { display: block; font-size: 1.06rem; }
@@ -124,12 +129,12 @@ h2 { font-size: clamp(1.6rem, 4vw, 2.2rem); line-height: 1.12; letter-spacing: -
 <main>
 <div class="wrap hero">
   <div>
-    <p class="kicker">Notation mélodique · En développement</p>
+    <p class="kicker">Notation mélodique · Libre &amp; hors-ligne</p>
     <h1>Écris, vérifie et transpose une mélodie en quelques secondes.</h1>
     <p class="lead">Fredonne est une application Android libre pour noter une mélodie à une voix au clavier, l'écouter tout de suite et la transposer dans une autre tonalité ou pour un instrument transpositeur (Si&#9837;, Mi&#9837;, Fa). Tout reste sur votre téléphone.</p>
     <div class="cta">
-      <a class="btn primary" href="https://github.com/Relthdrarxash/fredonne">Voir le code source</a>
-      <a class="btn" href="https://github.com/Relthdrarxash/fredonne/blob/main/docs/conception.md">Lire la conception</a>
+      <a class="btn primary" href="https://github.com/Relthdrarxash/fredonne/releases/latest/download/Fredonne.apk">Télécharger l'APK</a>
+      <a class="btn" href="https://github.com/Relthdrarxash/fredonne">Code source</a>
     </div>
   </div>
   <div class="staff-card" aria-hidden="true">
@@ -167,6 +172,25 @@ h2 { font-size: clamp(1.6rem, 4vw, 2.2rem); line-height: 1.12; letter-spacing: -
     <article class="card"><h3>Transposition instantanée</h3><p>Changement de tonalité ou affichage adapté aux instruments transpositeurs (Si&#9837;, Mi&#9837;, Fa) avec orthographe juste des altérations.</p></article>
     <article class="card"><h3>Vérificateur bienveillant</h3><p>Contrôle les durées de chaque mesure et la tessiture de l'instrument en toile de fond : il souligne sans jamais bloquer.</p></article>
     <article class="card"><h3>Formats ouverts</h3><p>Import et export MusicXML, MIDI et PDF sans filigrane, via le sélecteur de fichiers Android.</p></article>
+  </div>
+</section>
+
+<section class="wrap" id="captures">
+  <h2>Aperçu de l'application</h2>
+  <p class="sub">Captures générées directement depuis l'interface Android.</p>
+  <div class="shots">
+    <figure>
+      <img src="captures/bienvenue.png" alt="Écran d'accueil et choix d'instrument dans Fredonne" loading="lazy">
+      <figcaption>Accueil et choix d'instrument</figcaption>
+    </figure>
+    <figure>
+      <img src="captures/editeur.png" alt="Éditeur de portée et clavier virtuel dans Fredonne" loading="lazy">
+      <figcaption>Saisie au clavier sur portée</figcaption>
+    </figure>
+    <figure>
+      <img src="captures/transpositeur.png" alt="Affichage transposé pour clarinette en Si bémol dans Fredonne" loading="lazy">
+      <figcaption>Transposition instrumentale (Clarinette Si&#9837;)</figcaption>
+    </figure>
   </div>
 </section>
 
@@ -219,19 +243,38 @@ h2 { font-size: clamp(1.6rem, 4vw, 2.2rem); line-height: 1.12; letter-spacing: -
   const SHARP_MAP = [0,1,0,1,0,0,1,0,1,0,1,0];
   let notes = [60, 62, 64, 67];
   let ctx = null;
-  function tone(midi, dur=0.28) {
+  function tone(midi, dur=0.42) {
     if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
+    if (ctx.state === "suspended") ctx.resume();
     const now = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const g = ctx.createGain();
-    osc.type = "triangle";
-    osc.frequency.value = 440 * Math.pow(2, (midi - 69) / 12);
-    g.gain.setValueAtTime(0.001, now);
-    g.gain.linearRampToValueAtTime(0.22, now + 0.015);
-    g.gain.exponentialRampToValueAtTime(0.001, now + dur);
-    osc.connect(g).connect(ctx.destination);
-    osc.start(now);
-    osc.stop(now + dur + 0.02);
+    const freq = 440 * Math.pow(2, (midi - 69) / 12);
+    const filter = ctx.createBiquadFilter();
+    filter.type = "lowpass";
+    filter.frequency.setValueAtTime(Math.min(freq * 6, 7500), now);
+    filter.frequency.exponentialRampToValueAtTime(Math.max(freq * 1.6, 220), now + dur);
+
+    const master = ctx.createGain();
+    master.gain.setValueAtTime(0.0001, now);
+    master.gain.linearRampToValueAtTime(0.28, now + 0.012);
+    master.gain.exponentialRampToValueAtTime(0.0001, now + dur);
+
+    const partials = [
+      { mult: 1, type: "sine", gain: 1.0, decay: dur },
+      { mult: 2, type: "sine", gain: 0.30, decay: dur * 0.55 },
+      { mult: 3, type: "triangle", gain: 0.10, decay: dur * 0.35 }
+    ];
+    filter.connect(master).connect(ctx.destination);
+    partials.forEach((p) => {
+      const osc = ctx.createOscillator();
+      const pg = ctx.createGain();
+      osc.type = p.type;
+      osc.frequency.value = freq * p.mult;
+      pg.gain.setValueAtTime(p.gain, now);
+      pg.gain.exponentialRampToValueAtTime(0.001, now + p.decay);
+      osc.connect(pg).connect(filter);
+      osc.start(now);
+      osc.stop(now + dur + 0.03);
+    });
   }
   function midiDia(m) {
     const pc = ((m % 12) + 12) % 12;
