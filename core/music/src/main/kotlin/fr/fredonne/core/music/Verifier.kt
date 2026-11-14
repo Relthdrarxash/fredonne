@@ -22,6 +22,16 @@ data class OutOfRange(
     val tooLow: Boolean,
 ) : Issue
 
+/**
+ * Une note comporte une altération accidentelle hors armure sur un instrument diatonique à leviers
+ * (ex. harpe celtique), nécessitant un basculement de levier en cours de morceau.
+ */
+data class LeverChangeRequired(
+    override val measure: Int,
+    val eventIndex: Int,
+    val pitch: Pitch,
+) : Issue
+
 /** Quintes parallèles consécutives par mouvement semblable entre deux voix (contrepoint de Fux / Tymoczko). */
 data class ParallelFifths(
     override val measure: Int,
@@ -87,6 +97,9 @@ object Verifier {
                             midi > instrument.soundingHigh.midi ->
                                 issues += OutOfRange(index, eventIndex, event.pitch, tooLow = false)
                         }
+                        if (instrument.diatonicOnly && event.pitch.alter != melody.key.diatonicAlter(event.pitch.step)) {
+                            issues += LeverChangeRequired(index, eventIndex, event.pitch)
+                        }
                     }
                 }
             }
@@ -127,17 +140,18 @@ object Verifier {
             val lEvents = lower.measures[m].events
 
             // Collecte des instants d'attaque dans la mesure
-            val onsets = sortedSetOf<Fraction>()
+            val onsetsSet = mutableSetOf<Fraction>()
             var pos = Fraction.ZERO
             for (e in uEvents) {
-                onsets += pos
+                onsetsSet += pos
                 pos += e.length
             }
             pos = Fraction.ZERO
             for (e in lEvents) {
-                onsets += pos
+                onsetsSet += pos
                 pos += e.length
             }
+            val onsets = onsetsSet.sorted()
 
             fun pitchAt(events: List<Event>, target: Fraction): Pitch? {
                 var cur = Fraction.ZERO

@@ -18,6 +18,16 @@ data class Key(val tonicStep: Step, val tonicAlter: Int, val mode: Mode) {
     /** Vrai si l'armure compte au plus sept altérations. */
     val isPractical: Boolean get() = fifths in -7..7
 
+    /** Altération diatonique portée par l'armure pour le degré [step] (-1, 0 ou +1). */
+    fun diatonicAlter(step: Step): Int {
+        val f = fifths.coerceIn(-7, 7)
+        return when {
+            f > 0 -> if (FIFTHS_LINE.indexOf(step) < f) 1 else 0
+            f < 0 -> if (FIFTHS_LINE.asReversed().indexOf(step) < -f) -1 else 0
+            else -> 0
+        }
+    }
+
     /** Même mode, tonique transposée. L'armure obtenue peut être peu pratique : voir [isPractical]. */
     fun transposed(interval: Interval): Key {
         val tonic = Pitch(tonicStep, 4, tonicAlter).transpose(interval)

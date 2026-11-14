@@ -117,4 +117,50 @@ class EditorStateTest {
             assertTrue(pcm.any { it != 0.toShort() })
         }
     }
+
+    @Test
+    fun `EditorState exports and imports MusicXML, MIDI and PDF cleanly`() {
+        val initial = EditorState()
+            .setInstrument(Instruments.CLARINET_BB)
+            .insertNote(Pitch(Step.C, 4))
+            .insertNote(Pitch(Step.E, 4))
+            .insertNote(Pitch(Step.G, 4))
+            .insertNote(Pitch(Step.C, 5))
+
+        val xml = initial.exportMusicXml("Test Export")
+        val fromXml = EditorState().importMusicXml(xml)
+        assertEquals(Instruments.CLARINET_BB, fromXml.instrument)
+        assertEquals(initial.melody.measures, fromXml.melody.measures)
+
+        val midi = initial.exportMidi()
+        val fromMidi = EditorState().importMidi(midi)
+        assertEquals(initial.melody.measures, fromMidi.melody.measures)
+
+        val pdf = initial.exportPdf("Test Partition")
+        assertTrue(pdf.decodeToString().startsWith("%PDF-1.4"))
+    }
+
+    @Test
+    fun `transposeSemitones shifts pitch and key cleanly without double accidentals across 12 semitones`() {
+        var state = EditorState()
+            .insertNote(Pitch(Step.C, 4))
+            .insertNote(Pitch(Step.E, 4))
+            .insertNote(Pitch(Step.G, 4))
+
+        val upTone = state.transposeSemitones(2)
+        assertEquals(Key(Step.D, 0, Mode.MAJOR), upTone.melody.key)
+        assertEquals(Pitch(Step.D, 4), (upTone.melody.measures[0].events[0] as Note).pitch)
+        assertEquals(Pitch(Step.F, 4, 1), (upTone.melody.measures[0].events[1] as Note).pitch)
+
+        val downHalf = upTone.transposeSemitones(-1)
+        assertEquals(Key(Step.D, -1, Mode.MAJOR), downHalf.melody.key)
+        assertEquals(Pitch(Step.D, 4, -1), (downHalf.melody.measures[0].events[0] as Note).pitch)
+
+        repeat(12) {
+            state = state.transposeSemitones(1)
+            assertTrue(state.melody.key.fifths in -6..6)
+        }
+        assertEquals(Key(Step.C, 0, Mode.MAJOR), state.melody.key)
+        assertEquals(Pitch(Step.C, 5), (state.melody.measures[0].events[0] as Note).pitch)
+    }
 }

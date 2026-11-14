@@ -155,19 +155,19 @@ object MusicTheory {
     }
 
     private fun normalizedAlter(rawDiff: Int): Int {
-        val mod = Math.floorMod(rawDiff + 6, 12) - 6
+        val mod = (rawDiff + 6).mod(12) - 6
         return mod
     }
 
     private fun pitchAtMidiWithStep(midi: Int, step: Step, alter: Int): Pitch {
         val baseMidi = midi - alter - step.semitone
-        val octave = Math.floorDiv(baseMidi, 12) - 1
+        val octave = baseMidi.floorDiv(12) - 1
         return Pitch(step, octave, alter)
     }
 
     private fun spellSharp(midi: Int): Pitch {
-        val pc = Math.floorMod(midi, 12)
-        val octave = Math.floorDiv(midi, 12) - 1
+        val pc = midi.mod(12)
+        val octave = midi.floorDiv(12) - 1
         return when (pc) {
             0 -> Pitch(Step.C, octave, 0)
             1 -> Pitch(Step.C, octave, 1)
@@ -185,8 +185,8 @@ object MusicTheory {
     }
 
     private fun spellFlat(midi: Int): Pitch {
-        val pc = Math.floorMod(midi, 12)
-        val octave = Math.floorDiv(midi, 12) - 1
+        val pc = midi.mod(12)
+        val octave = midi.floorDiv(12) - 1
         return when (pc) {
             0 -> Pitch(Step.C, octave, 0)
             1 -> Pitch(Step.D, octave, -1)

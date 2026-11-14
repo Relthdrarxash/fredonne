@@ -10,11 +10,15 @@ import fr.fredonne.core.music.Issue
 import fr.fredonne.core.music.Key
 import fr.fredonne.core.music.Measure
 import fr.fredonne.core.music.Melody
+import fr.fredonne.core.music.MidiCodec
 import fr.fredonne.core.music.Mode
 import fr.fredonne.core.music.MusicTheory
+import fr.fredonne.core.music.MusicXmlCodec
 import fr.fredonne.core.music.Note
 import fr.fredonne.core.music.Pitch
 import fr.fredonne.core.music.Rest
+import fr.fredonne.core.music.ScorePdfGenerator
+import fr.fredonne.core.music.ShareCodec
 import fr.fredonne.core.music.Step
 import fr.fredonne.core.music.TimeSignature
 import fr.fredonne.core.music.Verifier
@@ -265,6 +269,24 @@ data class EditorState(
         return base.copy(melody = base.melody.transposed(interval).respellPractical())
     }
 
+    /**
+     * Monte ou descend toute la mélodie d'un nombre de demi-tons ([deltaSemitones], ex. -2, -1, +1, +2)
+     * en choisissant automatiquement l'armure enharmonique la plus lisible sur le cycle des quintes.
+     */
+    fun transposeSemitones(deltaSemitones: Int): EditorState {
+        if (deltaSemitones == 0) return this
+        val base = pushUndo()
+        val fromKey = base.melody.key
+        val newFifths = ((fromKey.fifths + 7 * deltaSemitones + 6).mod(12)) - 6
+        val targetKey = Key.fromFifths(newFifths, fromKey.mode)
+        val tonicA = Pitch(fromKey.tonicStep, 4, fromKey.tonicAlter)
+        val targetMidi = tonicA.midi + deltaSemitones
+        val targetOctave = (targetMidi - targetKey.tonicStep.semitone - targetKey.tonicAlter).floorDiv(12) - 1
+        val tonicB = Pitch(targetKey.tonicStep, targetOctave, targetKey.tonicAlter)
+        val totalInterval = Interval.between(tonicA, tonicB)
+        return base.copy(melody = base.melody.transposed(totalInterval).respellPractical())
+    }
+
     fun transposeOctave(up: Boolean): EditorState {
         val base = pushUndo()
         val interval = if (up) Interval.OCTAVE else -Interval.OCTAVE
@@ -316,6 +338,52 @@ data class EditorState(
             melody = sampleMelody(),
             cursorMeasure = 1,
             cursorEventIndex = 3,
+        )
+    }
+
+    fun exportMusicXml(title: String = "Mélodie Fredonne"): String =
+        MusicXmlCodec.export(melody = melody, instrument = instrument, title = title)
+
+    fun importMusicXml(xml: String): EditorState {
+        val (importedMelody, importedInstrument) = MusicXmlCodec.import(xml)
+        val base = pushUndo()
+        return base.copy(
+            melody = importedMelody,
+            instrument = importedInstrument ?: base.instrument,
+            cursorMeasure = 0,
+            cursorEventIndex = 0,
+        )
+    }
+
+    fun exportMidi(): ByteArray =
+        MidiCodec.export(melody = melody, bpm = tempoBpm, instrument = instrument)
+
+    fun importMidi(bytes: ByteArray): EditorState {
+        val (importedMelody, importedBpm) = MidiCodec.import(bytes)
+        val base = pushUndo()
+        return base.copy(
+            melody = importedMelody,
+            tempoBpm = importedBpm,
+            cursorMeasure = 0,
+            cursorEventIndex = 0,
+        )
+    }
+
+    fun exportPdf(title: String = "Partition Fredonne"): ByteArray =
+        ScorePdfGenerator.generate(melody = melody, instrument = instrument, tempoBpm = tempoBpm, title = title)
+
+    fun exportShareCode(): String =
+        ShareCodec.encode(melody = melody, instrument = instrument, tempoBpm = tempoBpm)
+
+    fun importShareCode(code: String): EditorState {
+        val shared = ShareCodec.decode(code)
+        val base = pushUndo()
+        return base.copy(
+            melody = shared.melody,
+            instrument = shared.instrument,
+            tempoBpm = shared.tempoBpm,
+            cursorMeasure = 0,
+            cursorEventIndex = 0,
         )
     }
 

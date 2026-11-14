@@ -7,6 +7,8 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -46,6 +48,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
@@ -56,10 +59,12 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -82,6 +87,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import fr.fredonne.core.music.Clef
+import fr.fredonne.core.music.Direction
 import fr.fredonne.core.music.Durations
 import fr.fredonne.core.music.Fraction
 import fr.fredonne.core.music.HighRoughnessInterval
@@ -89,6 +96,7 @@ import fr.fredonne.core.music.Instrument
 import fr.fredonne.core.music.Instruments
 import fr.fredonne.core.music.Issue
 import fr.fredonne.core.music.Key
+import fr.fredonne.core.music.LeverChangeRequired
 import fr.fredonne.core.music.MeasureTooLong
 import fr.fredonne.core.music.MeasureTooShort
 import fr.fredonne.core.music.Mode
@@ -98,9 +106,11 @@ import fr.fredonne.core.music.OutOfRange
 import fr.fredonne.core.music.ParallelFifths
 import fr.fredonne.core.music.ParallelOctaves
 import fr.fredonne.core.music.Pitch
+import fr.fredonne.core.music.QrCodeEncoder
 import fr.fredonne.core.music.Rest
 import fr.fredonne.core.music.Step
 import fr.fredonne.core.music.VoiceCrossing
+import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
 
 private val PaperBg = Color(0xFFFAF8F4)
@@ -161,11 +171,13 @@ fun FredonneApp(
     }
 
     val player = remember { TonePlayer() }
+    val exporter = rememberScoreExporter()
     var isPlaying by remember { mutableStateOf(false) }
     var playingPosition by remember { mutableStateOf<Pair<Int, Int>?>(null) }
 
     var showKeyDialog by remember { mutableStateOf(false) }
     var showInstrumentDialog by remember { mutableStateOf(false) }
+    var showFormatsDialog by remember { mutableStateOf(false) }
     var showAboutDialog by remember { mutableStateOf(false) }
     var baseOctave by remember { mutableIntStateOf(4) }
 
@@ -282,6 +294,10 @@ fun FredonneApp(
                     },
                 )
                 AssistChip(
+                    onClick = { showFormatsDialog = true },
+                    label = { Text("MusicXML · MIDI · PDF") },
+                )
+                AssistChip(
                     onClick = { state = state.loadSampleMelody() },
                     leadingIcon = {
                         Icon(
@@ -359,11 +375,25 @@ fun FredonneApp(
                 ) {
                     Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "Curseur droit")
                 }
+                val backspaceInteraction = remember { MutableInteractionSource() }
+                val isBackspacePressed by backspaceInteraction.collectIsPressedAsState()
+                val latestDelete by rememberUpdatedState { state = state.deleteAtCursor() }
+                LaunchedEffect(isBackspacePressed) {
+                    if (isBackspacePressed) {
+                        latestDelete()
+                        delay(360L)
+                        while (isBackspacePressed) {
+                            latestDelete()
+                            delay(90L)
+                        }
+                    }
+                }
                 IconButton(
-                    onClick = { state = state.deleteAtCursor() },
+                    onClick = {},
+                    interactionSource = backspaceInteraction,
                     modifier = Modifier.size(34.dp),
                 ) {
-                    Icon(Icons.AutoMirrored.Filled.Backspace, contentDescription = "Supprimer note")
+                    Icon(Icons.AutoMirrored.Filled.Backspace, contentDescription = "Supprimer note (maintenir pour effacer en continu)")
                 }
             }
 
@@ -380,7 +410,7 @@ fun FredonneApp(
             // Mini clavier piano pour saisie directe avec retour sonore immédiat
             PianoKeyboard(
                 baseOctave = baseOctave,
-                onShiftOctave = { delta -> baseOctave = (baseOctave + delta).coerceIn(3, 5) },
+                onShiftOctave = { delta -> baseOctave = (baseOctave + delta).coerceIn(1, 5) },
                 onKeyPressed = { pitch ->
                     player.playSingleNote(
                         midi = pitch.midi,
@@ -403,11 +433,31 @@ fun FredonneApp(
     if (showInstrumentDialog) {
         InstrumentDialog(
             current = state.instrument,
-            onSelect = {
-                state = state.setInstrument(it)
+            onSelect = { inst ->
+                state = state.setInstrument(inst)
+                if (inst != null) {
+                    baseOctave = when (inst.id) {
+                        "bass_electric", "contrabass" -> 1
+                        "voice_bass", "trombone" -> 2
+                        "voice_tenor", "harp_celtic", "guitar", "horn_f", "sax_baritone" -> 3
+                        else -> 4
+                    }
+                }
                 showInstrumentDialog = false
             },
             onDismiss = { showInstrumentDialog = false },
+        )
+    }
+
+    if (showFormatsDialog) {
+        FormatsDialog(
+            state = state,
+            exporter = exporter,
+            onUpdateState = {
+                state = it
+                showFormatsDialog = false
+            },
+            onDismiss = { showFormatsDialog = false },
         )
     }
 
@@ -426,278 +476,376 @@ private fun StaffCanvas(
     val melody = state.displayedMelody
     val issues = state.issues
     val textMeasurer = rememberTextMeasurer()
-    val scrollState = rememberScrollState()
+    val verticalScrollState = rememberScrollState()
     val density = LocalDensity.current
 
-    // Calcul des positions X de chaque mesure et événement
-    val clefAreaPx = with(density) { 86.dp.toPx() }
-    val eventStepPx = with(density) { 46.dp.toPx() }
-    val measurePadPx = with(density) { 26.dp.toPx() }
-    val minMeasureWidthPx = with(density) { 128.dp.toPx() }
+    BoxWithConstraints(modifier = modifier.fillMaxSize()) {
+        val viewportWidthPx = with(density) { maxWidth.toPx() }.coerceAtLeast(320f)
+        val viewportHeightPx = with(density) { maxHeight.toPx() }.coerceAtLeast(150f)
 
-    val measureLayouts = remember(melody, clefAreaPx, eventStepPx, measurePadPx, minMeasureWidthPx) {
-        var x = clefAreaPx
-        melody.measures.mapIndexed { mIdx, measure ->
-            val startX = x
-            var cursorOffset = startX + measurePadPx
-            val eventXs = measure.events.map { event ->
-                val stepWidth = eventStepPx * MusicTheory.gourlaySpacingFactor(event.length)
-                val cx = cursorOffset + stepWidth * 0.45f
-                cursorOffset += stepWidth
-                cx
+        val clefAreaPx = with(density) { 82.dp.toPx() }
+        val eventStepPx = with(density) { 42.dp.toPx() }
+        val measurePadPx = with(density) { 20.dp.toPx() }
+        val minMeasureWidthPx = with(density) { 112.dp.toPx() }
+        val rightMarginPx = with(density) { 16.dp.toPx() }
+        val baseSystemHeightPx = with(density) { 142.dp.toPx() }
+
+        // Découpage automatique en lignes de portée (systèmes) dès qu'une mesure dépasse la largeur de l'écran
+        val systemLayouts = remember(
+            melody,
+            viewportWidthPx,
+            clefAreaPx,
+            eventStepPx,
+            measurePadPx,
+            minMeasureWidthPx,
+            rightMarginPx,
+        ) {
+            val usableLineWidth = (viewportWidthPx - clefAreaPx - rightMarginPx).coerceAtLeast(minMeasureWidthPx)
+
+            data class RawMeasureSpec(
+                val index: Int,
+                val eventSteps: List<Float>,
+                val naturalWidth: Float,
+            )
+
+            val specs = melody.measures.mapIndexed { mIdx, measure ->
+                val steps = measure.events.map { event ->
+                    eventStepPx * MusicTheory.gourlaySpacingFactor(event.length)
+                }
+                val natW = maxOf(minMeasureWidthPx, steps.sum() + measurePadPx * 2f)
+                RawMeasureSpec(mIdx, steps, natW)
             }
-            val contentWidth = maxOf(minMeasureWidthPx, (cursorOffset - startX) + measurePadPx)
-            val endX = startX + contentWidth
-            x = endX
-            MeasureLayout(mIdx, startX, endX, eventXs)
+
+            val rows = mutableListOf<MutableList<RawMeasureSpec>>()
+            var currentRow = mutableListOf<RawMeasureSpec>()
+            var currentRowWidth = 0f
+
+            for (spec in specs) {
+                if (currentRow.isNotEmpty() && currentRowWidth + spec.naturalWidth > usableLineWidth) {
+                    rows += currentRow
+                    currentRow = mutableListOf(spec)
+                    currentRowWidth = spec.naturalWidth
+                } else {
+                    currentRow += spec
+                    currentRowWidth += spec.naturalWidth
+                }
+            }
+            if (currentRow.isNotEmpty()) rows += currentRow
+
+            rows.mapIndexed { sysIdx, rowSpecs ->
+                val rawSum = rowSpecs.sumOf { it.naturalWidth.toDouble() }.toFloat().coerceAtLeast(1f)
+                // Si la ligne comporte plusieurs mesures ou remplit plus de 75 % de la largeur, on l'étire jusqu'à la marge droite
+                val stretch = if (rowSpecs.size > 1 || rawSum > usableLineWidth * 0.75f) {
+                    (usableLineWidth / rawSum).coerceIn(0.85f, 1.35f)
+                } else {
+                    1.0f
+                }
+
+                var x = clefAreaPx
+                val layouts = rowSpecs.map { spec ->
+                    val startX = x
+                    val mWidth = spec.naturalWidth * stretch
+                    val pad = measurePadPx * stretch
+                    var cursorOffset = startX + pad
+                    val eventXs = spec.eventSteps.map { stepW ->
+                        val scaledStep = stepW * stretch
+                        val cx = cursorOffset + scaledStep * 0.45f
+                        cursorOffset += scaledStep
+                        cx
+                    }
+                    val endX = startX + mWidth
+                    x = endX
+                    MeasureLayout(spec.index, sysIdx, startX, endX, eventXs)
+                }
+                SystemLayout(sysIdx, layouts)
+            }
         }
-    }
 
-    val totalWidthDp = with(density) {
-        maxOf(360f, (measureLayouts.lastOrNull()?.endX ?: clefAreaPx) + 40f).toDp()
-    }
+        val systemHeightPx = if (systemLayouts.size <= 1) {
+            maxOf(baseSystemHeightPx, viewportHeightPx)
+        } else {
+            baseSystemHeightPx
+        }
+        val totalCanvasHeightDp = with(density) {
+            (systemLayouts.size * systemHeightPx + 12f).toDp()
+        }
 
-    Box(
-        modifier = modifier
-            .horizontalScroll(scrollState)
-            .width(totalWidthDp)
-            .fillMaxHeight()
-            .pointerInput(measureLayouts, melody) {
-                detectTapGestures { offset ->
-                    val clickedMeasure = measureLayouts.firstOrNull { offset.x in it.startX..it.endX }
-                        ?: measureLayouts.lastOrNull()
-                    if (clickedMeasure != null) {
-                        val events = clickedMeasure.eventXs
-                        val targetEvent = if (events.isEmpty()) {
-                            0
-                        } else {
-                            var idx = events.indexOfFirst { offset.x < it }
-                            if (idx == -1) idx = events.size
-                            idx
+        // Autoscroll vertical vers la ligne de portée active lors de la saisie ou de la lecture
+        val activeMeasureIndex = playingPosition?.first ?: state.cursorMeasure
+        LaunchedEffect(activeMeasureIndex, state.cursorEventIndex, systemLayouts.size) {
+            val activeSystemIdx = systemLayouts.indexOfFirst { sys ->
+                sys.measures.any { it.index == activeMeasureIndex }
+            }
+            if (activeSystemIdx >= 0 && systemLayouts.size > 1) {
+                val sysTop = (activeSystemIdx * systemHeightPx).roundToInt()
+                val sysBottom = ((activeSystemIdx + 1) * systemHeightPx).roundToInt()
+                val viewTop = verticalScrollState.value
+                val viewBottom = viewTop + viewportHeightPx.roundToInt()
+                if (sysBottom > viewBottom) {
+                    verticalScrollState.animateScrollTo((sysBottom - viewportHeightPx.roundToInt()).coerceAtLeast(0))
+                } else if (sysTop < viewTop) {
+                    verticalScrollState.animateScrollTo(sysTop)
+                }
+            }
+        }
+
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(verticalScrollState),
+        ) {
+            Canvas(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(totalCanvasHeightDp)
+                    .pointerInput(systemLayouts, melody, systemHeightPx) {
+                        detectTapGestures { offset ->
+                            val sysIdx = (offset.y / systemHeightPx).toInt().coerceIn(0, (systemLayouts.size - 1).coerceAtLeast(0))
+                            val system = systemLayouts.getOrNull(sysIdx)
+                            val clickedMeasure = system?.measures?.firstOrNull { offset.x in it.startX..it.endX }
+                                ?: system?.measures?.lastOrNull()
+                            if (clickedMeasure != null) {
+                                val events = clickedMeasure.eventXs
+                                val targetEvent = if (events.isEmpty()) {
+                                    0
+                                } else {
+                                    var idx = events.indexOfFirst { offset.x < it }
+                                    if (idx == -1) idx = events.size
+                                    idx
+                                }
+                                onSelectCursor(clickedMeasure.index, targetEvent)
+                            }
                         }
-                        onSelectCursor(clickedMeasure.index, targetEvent)
+                    },
+            ) {
+                val lineSpacing = (systemHeightPx * 0.095f).coerceIn(12f, 20f)
+                val stepHalf = lineSpacing / 2f
+                val clef = Clef.resolveFor(melody, state.instrument)
+                val bottomLineDiatonic = clef.bottomLinePitch.diatonic
+
+                systemLayouts.forEach { system ->
+                    val sysTopOffset = system.systemIndex * systemHeightPx
+                    val staffTop = sysTopOffset + systemHeightPx * 0.28f
+                    val bottomLineY = staffTop + 4 * lineSpacing
+                    val systemEndX = system.measures.lastOrNull()?.endX ?: (size.width - 16f)
+
+                    fun yForPitch(pitch: Pitch): Float {
+                        val delta = pitch.diatonic - bottomLineDiatonic
+                        return bottomLineY - delta * stepHalf
                     }
-                }
-            },
-    ) {
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            val staffTop = size.height * 0.30f
-            val lineSpacing = (size.height * 0.085f).coerceIn(12f, 22f)
-            val stepHalf = lineSpacing / 2f
-            // Ligne du bas (Mi4 en clé de Sol) = diatonic(E4) = 4*7 + 2 = 30
-            val bottomLineDiatonic = Pitch(Step.E, 4).diatonic
-            val bottomLineY = staffTop + 4 * lineSpacing
 
-            fun yForPitch(pitch: Pitch): Float {
-                val delta = pitch.diatonic - bottomLineDiatonic
-                return bottomLineY - delta * stepHalf
-            }
+                    // 5 lignes de la portée pour ce système
+                    for (line in 0..4) {
+                        val y = staffTop + line * lineSpacing
+                        drawLine(
+                            color = InkColor.copy(alpha = 0.78f),
+                            start = Offset(16f, y),
+                            end = Offset(systemEndX, y),
+                            strokeWidth = 2f,
+                        )
+                    }
 
-            // 5 lignes de la portée
-            for (line in 0..4) {
-                val y = staffTop + line * lineSpacing
-                drawLine(
-                    color = InkColor.copy(alpha = 0.78f),
-                    start = Offset(16f, y),
-                    end = Offset(size.width - 16f, y),
-                    strokeWidth = 2f,
-                )
-            }
-
-            // Clé de Sol stylisée + armure + chiffrage
-            drawText(
-                textMeasurer = textMeasurer,
-                text = "G",
-                topLeft = Offset(22f, staffTop + lineSpacing * 0.6f),
-                style = TextStyle(
-                    color = AccentSage,
-                    fontSize = 26.sp,
-                    fontFamily = FontFamily.Serif,
-                    fontWeight = FontWeight.Bold,
-                ),
-            )
-            val keyFifths = melody.key.fifths
-            val accLabel = when {
-                keyFifths > 0 -> "${keyFifths}#"
-                keyFifths < 0 -> "${-keyFifths}b"
-                else -> ""
-            }
-            if (accLabel.isNotEmpty()) {
-                drawText(
-                    textMeasurer = textMeasurer,
-                    text = accLabel,
-                    topLeft = Offset(46f, staffTop - lineSpacing * 0.7f),
-                    style = TextStyle(color = MutedInk, fontSize = 11.sp, fontWeight = FontWeight.Medium),
-                )
-            }
-            drawText(
-                textMeasurer = textMeasurer,
-                text = "${melody.time.beats}\n${melody.time.unit}",
-                topLeft = Offset(58f, staffTop + lineSpacing * 0.3f),
-                style = TextStyle(
-                    color = InkColor,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    lineHeight = 14.sp,
-                ),
-            )
-
-            // Mesures, barres, notes, silences et curseur
-            measureLayouts.forEach { layout ->
-                val measure = melody.measures[layout.index]
-                val measureIssues = issues.filter { it.measure == layout.index }
-                val hasLengthIssue = measureIssues.any { it is MeasureTooShort || it is MeasureTooLong }
-
-                // Soulignement discret si la mesure est incomplète ou trop longue
-                if (hasLengthIssue && measure.events.isNotEmpty()) {
+                    // Barre de début de système
                     drawLine(
-                        color = WarnAmber.copy(alpha = 0.75f),
-                        start = Offset(layout.startX + 4f, bottomLineY + lineSpacing * 2.1f),
-                        end = Offset(layout.endX - 4f, bottomLineY + lineSpacing * 2.1f),
-                        strokeWidth = 3.5f,
+                        color = AccentSage.copy(alpha = 0.85f),
+                        start = Offset(16f, staffTop),
+                        end = Offset(16f, bottomLineY),
+                        strokeWidth = 2.6f,
                     )
-                }
 
-                // Barre de mesure à droite
-                drawLine(
-                    color = InkColor.copy(alpha = 0.7f),
-                    start = Offset(layout.endX, staffTop),
-                    end = Offset(layout.endX, bottomLineY),
-                    strokeWidth = if (layout.index == measureLayouts.lastIndex) 3.5f else 2f,
-                )
+                    // Clé (Sol, Sol 8vb ou Fa) + armure + chiffrage
+                    drawText(
+                        textMeasurer = textMeasurer,
+                        text = clef.displaySymbol,
+                        topLeft = Offset(20f, staffTop + lineSpacing * (if (clef == Clef.BASS) 0.15f else 0.55f)),
+                        style = TextStyle(
+                            color = AccentSage,
+                            fontSize = if (clef == Clef.TREBLE) 25.sp else 19.sp,
+                            fontFamily = FontFamily.Serif,
+                            fontWeight = FontWeight.Bold,
+                        ),
+                    )
+                    val keyFifths = melody.key.fifths
+                    val accLabel = when {
+                        keyFifths > 0 -> "${keyFifths}#"
+                        keyFifths < 0 -> "${-keyFifths}b"
+                        else -> ""
+                    }
+                    if (accLabel.isNotEmpty()) {
+                        drawText(
+                            textMeasurer = textMeasurer,
+                            text = accLabel,
+                            topLeft = Offset(44f, staffTop - lineSpacing * 0.7f),
+                            style = TextStyle(color = MutedInk, fontSize = 11.sp, fontWeight = FontWeight.Medium),
+                        )
+                    }
+                    if (system.systemIndex == 0) {
+                        drawText(
+                            textMeasurer = textMeasurer,
+                            text = "${melody.time.beats}\n${melody.time.unit}",
+                            topLeft = Offset(58f, staffTop + lineSpacing * 0.25f),
+                            style = TextStyle(
+                                color = InkColor,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                lineHeight = 13.sp,
+                            ),
+                        )
+                    }
 
-                // Numéro de mesure
-                drawText(
-                    textMeasurer = textMeasurer,
-                    text = "${layout.index + 1}",
-                    topLeft = Offset(layout.startX + 6f, staffTop - lineSpacing * 1.4f),
-                    style = TextStyle(color = MutedInk, fontSize = 10.sp),
-                )
+                    // Mesures, barres, notes, silences et curseur
+                    system.measures.forEach { layout ->
+                        val measure = melody.measures[layout.index]
+                        val measureIssues = issues.filter { it.measure == layout.index }
+                        val hasLengthIssue = measureIssues.any { it is MeasureTooShort || it is MeasureTooLong }
 
-                // Événements
-                measure.events.forEachIndexed { eIdx, event ->
-                    val cx = layout.eventXs[eIdx]
-                    val isPlayingNow = playingPosition == (layout.index to eIdx)
-                    val isOutOfRange = measureIssues.any { it is OutOfRange && it.eventIndex == eIdx }
+                        if (hasLengthIssue && measure.events.isNotEmpty()) {
+                            drawLine(
+                                color = WarnAmber.copy(alpha = 0.75f),
+                                start = Offset(layout.startX + 4f, bottomLineY + lineSpacing * 2.1f),
+                                end = Offset(layout.endX - 4f, bottomLineY + lineSpacing * 2.1f),
+                                strokeWidth = 3.5f,
+                            )
+                        }
 
-                    when (event) {
-                        is Note -> {
-                            val cy = yForPitch(event.pitch)
-                            val noteColor = when {
-                                isPlayingNow -> CursorTeal
-                                isOutOfRange -> WarnRed
-                                else -> InkColor
-                            }
-                            // Lignes supplémentaires (en dessous de Mi4 ou au dessus de Fa5)
-                            val d = event.pitch.diatonic
-                            val lowLineD = bottomLineDiatonic // E4 = 30
-                            val highLineD = bottomLineDiatonic + 8 // F5 = 38
-                            if (d <= lowLineD - 2) {
-                                var ld = lowLineD - 2
-                                while (ld >= d) {
-                                    val ly = bottomLineY - (ld - bottomLineDiatonic) * stepHalf
-                                    drawLine(InkColor, Offset(cx - 13f, ly), Offset(cx + 13f, ly), strokeWidth = 2f)
-                                    ld -= 2
-                                }
-                            } else if (d >= highLineD + 2) {
-                                var ld = highLineD + 2
-                                while (ld <= d) {
-                                    val ly = bottomLineY - (ld - bottomLineDiatonic) * stepHalf
-                                    drawLine(InkColor, Offset(cx - 13f, ly), Offset(cx + 13f, ly), strokeWidth = 2f)
-                                    ld += 2
-                                }
-                            }
+                        // Barre de mesure à droite
+                        drawLine(
+                            color = InkColor.copy(alpha = 0.7f),
+                            start = Offset(layout.endX, staffTop),
+                            end = Offset(layout.endX, bottomLineY),
+                            strokeWidth = if (layout.index == melody.measures.lastIndex) 3.5f else 2f,
+                        )
 
-                            // Altération (# ou b)
-                            if (event.pitch.alter != 0) {
-                                val symbol = if (event.pitch.alter > 0) "#" else "b"
-                                drawText(
-                                    textMeasurer = textMeasurer,
-                                    text = symbol,
-                                    topLeft = Offset(cx - 21f, cy - 12f),
-                                    style = TextStyle(color = noteColor, fontSize = 13.sp, fontWeight = FontWeight.Bold),
-                                )
-                            }
+                        // Numéro de mesure
+                        drawText(
+                            textMeasurer = textMeasurer,
+                            text = "${layout.index + 1}",
+                            topLeft = Offset(layout.startX + 6f, staffTop - lineSpacing * 1.35f),
+                            style = TextStyle(color = MutedInk, fontSize = 10.sp),
+                        )
 
-                            val isWhole = event.written >= Durations.WHOLE
-                            val isHalf = event.written >= Durations.HALF && event.written < Durations.WHOLE
-                            val rx = lineSpacing * 0.62f
-                            val ry = lineSpacing * 0.44f
+                        measure.events.forEachIndexed { eIdx, event ->
+                            val cx = layout.eventXs[eIdx]
+                            val isPlayingNow = playingPosition == (layout.index to eIdx)
+                            val isOutOfRange = measureIssues.any { it is OutOfRange && it.eventIndex == eIdx }
+                            val isLeverChange = measureIssues.any { it is LeverChangeRequired && it.eventIndex == eIdx }
 
-                            if (isWhole || isHalf) {
-                                drawOval(
-                                    color = noteColor,
-                                    topLeft = Offset(cx - rx, cy - ry),
-                                    size = Size(rx * 2, ry * 2),
-                                    style = Stroke(width = 3f),
-                                )
-                            } else {
-                                drawOval(
-                                    color = noteColor,
-                                    topLeft = Offset(cx - rx, cy - ry),
-                                    size = Size(rx * 2, ry * 2),
-                                )
-                            }
-
-                            // Hampe (sauf ronde)
-                            if (!isWhole) {
-                                val stemUp = d < bottomLineDiatonic + 4 // < Si4
-                                val stemX = if (stemUp) cx + rx - 1.5f else cx - rx + 1.5f
-                                val stemEndY = if (stemUp) cy - lineSpacing * 2.8f else cy + lineSpacing * 2.8f
-                                drawLine(noteColor, Offset(stemX, cy), Offset(stemX, stemEndY), strokeWidth = 2.4f)
-
-                                // Crochets (croche / double-croche)
-                                val flags = when {
-                                    event.written <= Durations.SIXTEENTH -> 2
-                                    event.written <= Durations.EIGHTH -> 1
-                                    else -> 0
-                                }
-                                repeat(flags) { f ->
-                                    val fy = if (stemUp) stemEndY + f * 7f else stemEndY - f * 7f
-                                    val path = Path().apply {
-                                        moveTo(stemX, fy)
-                                        quadraticTo(stemX + 12f, fy + if (stemUp) 8f else -8f, stemX + 8f, fy + if (stemUp) 16f else -16f)
+                            when (event) {
+                                is Note -> {
+                                    val cy = yForPitch(event.pitch)
+                                    val noteColor = when {
+                                        isPlayingNow -> CursorTeal
+                                        isOutOfRange -> WarnRed
+                                        isLeverChange -> WarnAmber
+                                        else -> InkColor
                                     }
-                                    drawPath(path, color = noteColor, style = Stroke(width = 2.2f))
+                                    val d = event.pitch.diatonic
+                                    val lowLineD = bottomLineDiatonic
+                                    val highLineD = bottomLineDiatonic + 8
+                                    if (d <= lowLineD - 2) {
+                                        var ld = lowLineD - 2
+                                        while (ld >= d) {
+                                            val ly = bottomLineY - (ld - bottomLineDiatonic) * stepHalf
+                                            drawLine(InkColor, Offset(cx - 12f, ly), Offset(cx + 12f, ly), strokeWidth = 2f)
+                                            ld -= 2
+                                        }
+                                    } else if (d >= highLineD + 2) {
+                                        var ld = highLineD + 2
+                                        while (ld <= d) {
+                                            val ly = bottomLineY - (ld - bottomLineDiatonic) * stepHalf
+                                            drawLine(InkColor, Offset(cx - 12f, ly), Offset(cx + 12f, ly), strokeWidth = 2f)
+                                            ld += 2
+                                        }
+                                    }
+
+                                    if (event.pitch.alter != 0) {
+                                        val symbol = if (event.pitch.alter > 0) "#" else "b"
+                                        drawText(
+                                            textMeasurer = textMeasurer,
+                                            text = symbol,
+                                            topLeft = Offset(cx - 20f, cy - 11f),
+                                            style = TextStyle(color = noteColor, fontSize = 12.sp, fontWeight = FontWeight.Bold),
+                                        )
+                                    }
+
+                                    val isWhole = event.written >= Durations.WHOLE
+                                    val isHalf = event.written >= Durations.HALF && event.written < Durations.WHOLE
+                                    val rx = lineSpacing * 0.62f
+                                    val ry = lineSpacing * 0.44f
+
+                                    if (isWhole || isHalf) {
+                                        drawOval(
+                                            color = noteColor,
+                                            topLeft = Offset(cx - rx, cy - ry),
+                                            size = Size(rx * 2, ry * 2),
+                                            style = Stroke(width = 2.8f),
+                                        )
+                                    } else {
+                                        drawOval(
+                                            color = noteColor,
+                                            topLeft = Offset(cx - rx, cy - ry),
+                                            size = Size(rx * 2, ry * 2),
+                                        )
+                                    }
+
+                                    if (!isWhole) {
+                                        val stemUp = d < bottomLineDiatonic + 4
+                                        val stemX = if (stemUp) cx + rx - 1.5f else cx - rx + 1.5f
+                                        val stemEndY = if (stemUp) cy - lineSpacing * 2.75f else cy + lineSpacing * 2.75f
+                                        drawLine(noteColor, Offset(stemX, cy), Offset(stemX, stemEndY), strokeWidth = 2.3f)
+
+                                        val flags = when {
+                                            event.written <= Durations.SIXTEENTH -> 2
+                                            event.written <= Durations.EIGHTH -> 1
+                                            else -> 0
+                                        }
+                                        repeat(flags) { f ->
+                                            val fy = if (stemUp) stemEndY + f * 6.5f else stemEndY - f * 6.5f
+                                            val path = Path().apply {
+                                                moveTo(stemX, fy)
+                                                quadraticTo(stemX + 11f, fy + if (stemUp) 7f else -7f, stemX + 7f, fy + if (stemUp) 15f else -15f)
+                                            }
+                                            drawPath(path, color = noteColor, style = Stroke(width = 2.1f))
+                                        }
+                                    }
+
+                                    if (event.written.numerator == 3L && event.written.denominator >= 4L) {
+                                        drawCircle(noteColor, radius = 3.0f, center = Offset(cx + rx + 5.5f, cy - 2f))
+                                    }
+                                }
+                                is Rest -> {
+                                    val restColor = if (isPlayingNow) CursorTeal else MutedInk
+                                    drawRect(
+                                        color = restColor,
+                                        topLeft = Offset(cx - 6.5f, staffTop + lineSpacing * 1.5f),
+                                        size = Size(13f, 5.5f),
+                                    )
+                                    drawText(
+                                        textMeasurer = textMeasurer,
+                                        text = "z",
+                                        topLeft = Offset(cx - 4.5f, staffTop + lineSpacing * 2.2f),
+                                        style = TextStyle(color = restColor, fontSize = 10.sp, fontWeight = FontWeight.Bold),
+                                    )
                                 }
                             }
+                        }
 
-                            // Point de prolongation
-                            if (event.written.numerator == 3L && event.written.denominator >= 4L) {
-                                drawCircle(noteColor, radius = 3.2f, center = Offset(cx + rx + 6f, cy - 2f))
+                        // Curseur d'insertion
+                        if (state.cursorMeasure == layout.index) {
+                            val cursorX = when {
+                                measure.events.isEmpty() -> layout.startX + measurePadPx
+                                state.cursorEventIndex == 0 -> layout.eventXs.first() - eventStepPx * 0.42f
+                                state.cursorEventIndex >= measure.events.size -> layout.eventXs.last() + eventStepPx * 0.42f
+                                else -> (layout.eventXs[state.cursorEventIndex - 1] + layout.eventXs[state.cursorEventIndex]) / 2f
                             }
-                        }
-                        is Rest -> {
-                            val restColor = if (isPlayingNow) CursorTeal else MutedInk
-                            drawRect(
-                                color = restColor,
-                                topLeft = Offset(cx - 7f, staffTop + lineSpacing * 1.5f),
-                                size = Size(14f, 6f),
-                            )
-                            drawText(
-                                textMeasurer = textMeasurer,
-                                text = "z",
-                                topLeft = Offset(cx - 5f, staffTop + lineSpacing * 2.2f),
-                                style = TextStyle(color = restColor, fontSize = 11.sp, fontWeight = FontWeight.Bold),
+                            drawLine(
+                                color = CursorTeal,
+                                start = Offset(cursorX, staffTop - lineSpacing * 0.85f),
+                                end = Offset(cursorX, bottomLineY + lineSpacing * 0.85f),
+                                strokeWidth = 3f,
                             )
                         }
                     }
-                }
-
-                // Curseur d'insertion
-                if (state.cursorMeasure == layout.index) {
-                    val cursorX = when {
-                        measure.events.isEmpty() -> layout.startX + measurePadPx
-                        state.cursorEventIndex == 0 -> layout.eventXs.first() - eventStepPx * 0.48f
-                        state.cursorEventIndex >= measure.events.size -> layout.eventXs.last() + eventStepPx * 0.48f
-                        else -> (layout.eventXs[state.cursorEventIndex - 1] + layout.eventXs[state.cursorEventIndex]) / 2f
-                    }
-                    drawLine(
-                        color = CursorTeal,
-                        start = Offset(cursorX, staffTop - lineSpacing * 0.9f),
-                        end = Offset(cursorX, bottomLineY + lineSpacing * 0.9f),
-                        strokeWidth = 3f,
-                    )
                 }
             }
         }
@@ -706,9 +854,15 @@ private fun StaffCanvas(
 
 private data class MeasureLayout(
     val index: Int,
+    val systemIndex: Int,
     val startX: Float,
     val endX: Float,
     val eventXs: List<Float>,
+)
+
+private data class SystemLayout(
+    val systemIndex: Int,
+    val measures: List<MeasureLayout>,
 )
 
 @Composable
@@ -718,6 +872,7 @@ private fun VerifierBar(issues: List<Issue>, tempoBpm: Int) {
         is MeasureTooShort -> "Mesure ${first.measure + 1} : incomplète (manque ${first.missing.numerator}/${first.missing.denominator})"
         is MeasureTooLong -> "Mesure ${first.measure + 1} : dépassement de ${first.excess.numerator}/${first.excess.denominator}"
         is OutOfRange -> "Mesure ${first.measure + 1} : note ${if (first.tooLow) "trop grave" else "trop aiguë"} pour l'instrument"
+        is LeverChangeRequired -> "Mesure ${first.measure + 1} : altération hors armure (changement de levier requis)"
         is ParallelFifths -> "Mesure ${first.measure + 1} : quintes parallèles détectées"
         is ParallelOctaves -> "Mesure ${first.measure + 1} : octaves parallèles détectées"
         is VoiceCrossing -> "Mesure ${first.measure + 1} : croisement de voix"
@@ -845,7 +1000,7 @@ private fun PianoKeyboard(
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 TextButton(
                     onClick = { onShiftOctave(-1) },
-                    enabled = baseOctave > 3,
+                    enabled = baseOctave > 1,
                     contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
                 ) {
                     Text("-1 oct", fontSize = 12.sp)
@@ -922,6 +1077,7 @@ private fun KeyAndTransposeDialog(
     onDismiss: () -> Unit,
     onUpdateState: (EditorState) -> Unit,
 ) {
+    var selectedDirection by remember { mutableStateOf(Direction.NEAREST) }
     val keys = listOf(
         Triple(Step.C, 0, "Do majeur"),
         Triple(Step.G, 0, "Sol majeur (1#)"),
@@ -941,11 +1097,77 @@ private fun KeyAndTransposeDialog(
                 modifier = Modifier.verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                Text("Transposer la mélodie vers :", fontWeight = FontWeight.Medium, fontSize = 13.sp)
+                Text(
+                    "Ajuster la hauteur à l'oreille (voix / confort) :",
+                    fontWeight = FontWeight.Medium,
+                    fontSize = 13.sp,
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    OutlinedButton(
+                        onClick = { onUpdateState(state.transposeSemitones(-2)) },
+                        modifier = Modifier.weight(1f),
+                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 6.dp),
+                    ) {
+                        Text("-1 ton", fontSize = 12.sp)
+                    }
+                    OutlinedButton(
+                        onClick = { onUpdateState(state.transposeSemitones(-1)) },
+                        modifier = Modifier.weight(1f),
+                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 6.dp),
+                    ) {
+                        Text("-½ ton", fontSize = 12.sp)
+                    }
+                    OutlinedButton(
+                        onClick = { onUpdateState(state.transposeSemitones(1)) },
+                        modifier = Modifier.weight(1f),
+                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 6.dp),
+                    ) {
+                        Text("+½ ton", fontSize = 12.sp)
+                    }
+                    OutlinedButton(
+                        onClick = { onUpdateState(state.transposeSemitones(2)) },
+                        modifier = Modifier.weight(1f),
+                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 6.dp),
+                    ) {
+                        Text("+1 ton", fontSize = 12.sp)
+                    }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(
+                        onClick = { onUpdateState(state.transposeOctave(up = false)) },
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Text("-1 octave")
+                    }
+                    OutlinedButton(
+                        onClick = { onUpdateState(state.transposeOctave(up = true)) },
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Text("+1 octave")
+                    }
+                }
+                HorizontalDivider()
+                Text("Transposer la mélodie vers une tonalité :", fontWeight = FontWeight.Medium, fontSize = 13.sp)
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    listOf(
+                        Direction.NEAREST to "Plus proche",
+                        Direction.UP to "Monter ↑",
+                        Direction.DOWN to "Descendre ↓",
+                    ).forEach { (dir, label) ->
+                        FilterChip(
+                            selected = selectedDirection == dir,
+                            onClick = { selectedDirection = dir },
+                            label = { Text(label, fontSize = 11.sp) },
+                        )
+                    }
+                }
                 keys.forEach { (step, alter, label) ->
                     val isCurrent = state.melody.key.tonicStep == step && state.melody.key.tonicAlter == alter
                     OutlinedButton(
-                        onClick = { onUpdateState(state.transposeToKey(step, alter)) },
+                        onClick = { onUpdateState(state.transposeToKey(step, alter, selectedDirection)) },
                         modifier = Modifier.fillMaxWidth(),
                         border = BorderStroke(1.dp, if (isCurrent) AccentSage else Color(0xFFD5D1C7)),
                     ) {
@@ -962,20 +1184,6 @@ private fun KeyAndTransposeDialog(
                         color = AccentSage,
                         fontSize = 12.sp,
                     )
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(
-                        onClick = { onUpdateState(state.transposeOctave(up = false)) },
-                        modifier = Modifier.weight(1f),
-                    ) {
-                        Text("-1 octave")
-                    }
-                    OutlinedButton(
-                        onClick = { onUpdateState(state.transposeOctave(up = true)) },
-                        modifier = Modifier.weight(1f),
-                    ) {
-                        Text("+1 octave")
-                    }
                 }
                 HorizontalDivider()
                 Text("Chiffrage de mesure :", fontWeight = FontWeight.Medium, fontSize = 13.sp)
@@ -1154,6 +1362,168 @@ private fun OnboardingScreen(
 }
 
 @Composable
+private fun FormatsDialog(
+    state: EditorState,
+    exporter: ScoreExporter,
+    onUpdateState: (EditorState) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var statusMessage by remember { mutableStateOf<String?>(null) }
+    var shareCodeText by remember(state.melody, state.instrument, state.tempoBpm) {
+        mutableStateOf(state.exportShareCode())
+    }
+    val qrMatrix = remember(shareCodeText) {
+        runCatching { QrCodeEncoder.encode(shareCodeText) }.getOrNull()
+    }
+    var xmlText by remember(state.melody, state.instrument) {
+        mutableStateOf(state.exportMusicXml())
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Formats ouverts & QR Code hors-ligne") },
+        text = {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text(
+                    text = "Exportez la partition (avec transposition instrumentale et QR code de reprise sur le PDF) ou importez une partition hors-ligne.",
+                    fontSize = 13.sp,
+                    color = MutedInk,
+                )
+                OutlinedButton(
+                    onClick = {
+                        val xml = state.exportMusicXml()
+                        xmlText = xml
+                        val path = exporter.exportBytes(
+                            fileName = "fredonne_partition.musicxml",
+                            mimeType = "application/vnd.recordare.musicxml+xml",
+                            bytes = xml.encodeToByteArray(),
+                        )
+                        statusMessage = "MusicXML 4.0 exporté ($path)"
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text("Exporter en MusicXML (.musicxml)")
+                }
+                OutlinedButton(
+                    onClick = {
+                        val midi = state.exportMidi()
+                        val path = exporter.exportBytes(
+                            fileName = "fredonne_melodie.mid",
+                            mimeType = "audio/midi",
+                            bytes = midi,
+                        )
+                        statusMessage = "MIDI standard exporté (${midi.size} octets · $path)"
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text("Exporter en MIDI (.mid)")
+                }
+                OutlinedButton(
+                    onClick = {
+                        val pdf = state.exportPdf()
+                        val path = exporter.exportBytes(
+                            fileName = "fredonne_partition.pdf",
+                            mimeType = "application/pdf",
+                            bytes = pdf,
+                        )
+                        statusMessage = "PDF A4 avec QR code exporté (${pdf.size} octets · $path)"
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text("Exporter la partition en PDF (.pdf)")
+                }
+
+                HorizontalDivider()
+                Text("QR Code & code de reprise rapide (imprimé sur le PDF) :", fontWeight = FontWeight.Medium, fontSize = 13.sp)
+                if (qrMatrix != null) {
+                    Box(
+                        modifier = Modifier.fillMaxWidth(),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Canvas(
+                            modifier = Modifier
+                                .size(132.dp)
+                                .background(Color.White, RoundedCornerShape(8.dp))
+                                .border(1.dp, Color(0xFFD8D5CC), RoundedCornerShape(8.dp))
+                                .padding(8.dp),
+                        ) {
+                            val cellW = size.width / qrMatrix.size
+                            val cellH = size.height / qrMatrix.size
+                            for (y in 0 until qrMatrix.size) {
+                                for (x in 0 until qrMatrix.size) {
+                                    if (qrMatrix[x, y]) {
+                                        drawRect(
+                                            color = InkColor,
+                                            topLeft = Offset(x * cellW, y * cellH),
+                                            size = Size(cellW + 0.5f, cellH + 0.5f),
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                OutlinedTextField(
+                    value = shareCodeText,
+                    onValueChange = { shareCodeText = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    textStyle = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 11.sp),
+                )
+                OutlinedButton(
+                    onClick = {
+                        runCatching { state.importShareCode(shareCodeText) }
+                            .onSuccess { updated -> onUpdateState(updated) }
+                            .onFailure { statusMessage = "Erreur code QR : ${it.message ?: "code invalide"}" }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    border = BorderStroke(1.dp, AccentSage),
+                ) {
+                    Text("Reprendre la partition depuis ce code QR", color = AccentSage)
+                }
+
+                HorizontalDivider()
+                Text("Aperçu / Import MusicXML 4.0 :", fontWeight = FontWeight.Medium, fontSize = 13.sp)
+                OutlinedTextField(
+                    value = xmlText,
+                    onValueChange = { xmlText = it },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(110.dp),
+                    textStyle = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 11.sp),
+                )
+                OutlinedButton(
+                    onClick = {
+                        runCatching { state.importMusicXml(xmlText) }
+                            .onSuccess { updated -> onUpdateState(updated) }
+                            .onFailure { statusMessage = "Erreur MusicXML : ${it.message ?: "format non reconnu"}" }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    border = BorderStroke(1.dp, AccentSage),
+                ) {
+                    Text("Importer ce MusicXML sur la portée", color = AccentSage)
+                }
+
+                statusMessage?.let { msg ->
+                    Text(
+                        text = msg,
+                        fontSize = 12.sp,
+                        color = AccentSage,
+                        fontWeight = FontWeight.Medium,
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text("Fermer") }
+        },
+    )
+}
+
+@Composable
 private fun AboutDialog(onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -1203,12 +1573,15 @@ private fun instrumentLabel(instrument: Instrument): String = when (instrument.i
     "sax_baritone" -> "Saxophone baryton (Mib)"
     "trumpet_bb" -> "Trompette (Sib)"
     "horn_f" -> "Cor (Fa)"
-    "trombone" -> "Trombone (Ut)"
+    "trombone" -> "Trombone (Ut, Clé de Fa)"
     "violin" -> "Violon (Ut)"
+    "harp_celtic" -> "Harpe celtique (Ut, diatonique)"
     "guitar" -> "Guitare (Ut, 8va)"
+    "bass_electric" -> "Basse électrique (Clé de Fa, 8vb)"
+    "contrabass" -> "Contrebasse (Clé de Fa, 8vb)"
     "voice_soprano" -> "Voix Soprano"
     "voice_alto" -> "Voix Alto"
-    "voice_tenor" -> "Voix Ténor"
-    "voice_bass" -> "Voix Basse"
+    "voice_tenor" -> "Voix Ténor (Sol 8vb)"
+    "voice_bass" -> "Voix Basse (Clé de Fa)"
     else -> instrument.id
 }

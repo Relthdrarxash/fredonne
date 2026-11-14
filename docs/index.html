@@ -206,13 +206,21 @@ h2 { font-size: clamp(1.6rem, 4vw, 2.2rem); line-height: 1.12; letter-spacing: -
       </div>
       <div class="sim-toolbar" style="gap:6px">
         <select id="fr-inst" style="flex:1;min-width:0;font-size:12px;padding:6px 10px" aria-label="Instrument et timbre">
-          <option value="0|WARM_KEYS|52|88">Concert · Piano feutré (Ut)</option>
-          <option value="0|FLUTE|60|96">Flûte traversière (Ut · Vent)</option>
-          <option value="0|STRING|55|88">Violon (Ut · Cordes)</option>
-          <option value="2|REED|50|86">Clarinette en Si♭ (+2 st · Anche)</option>
-          <option value="2|BRASS|53|82">Trompette en Si♭ (+2 st · Cuivre)</option>
-          <option value="9|REED|49|80">Sax alto en Mi♭ (+9 st · Anche)</option>
-          <option value="7|BRASS|43|77">Cor en Fa (+7 st · Cuivre)</option>
+          <option value="0|WARM_KEYS|52|88|G|4">Concert · Piano feutré (Ut · Clé de Sol)</option>
+          <option value="0|STRING|36|93|AUTO|4">Harpe celtique (Ut · Diatonique C2–A6)</option>
+          <option value="12|BASS|28|55|F|2">Basse électrique (Clé de Fa · 8vb E1–G3)</option>
+          <option value="12|BASS|28|50|F|2">Contrebasse (Clé de Fa · 8vb E1–D3)</option>
+          <option value="0|WARM_KEYS|60|84|G|4">Chorale · Voix Soprano (Do4–Do6)</option>
+          <option value="0|WARM_KEYS|55|74|G|4">Chorale · Voix Alto (Sol3–Ré5)</option>
+          <option value="0|WARM_KEYS|48|72|G8|3">Chorale · Voix Ténor (Do3–Do5 · Sol 8vb)</option>
+          <option value="0|WARM_KEYS|40|64|F|2">Chorale · Voix Basse (Mi2–Mi4 · Clé de Fa)</option>
+          <option value="0|FLUTE|60|96|G|4">Flûte traversière (Ut · Vent)</option>
+          <option value="0|STRING|55|88|G|4">Violon (Ut · Cordes)</option>
+          <option value="2|REED|50|86|G|4">Clarinette en Si♭ (+2 st · Anche)</option>
+          <option value="2|BRASS|53|82|G|4">Trompette en Si♭ (+2 st · Cuivre)</option>
+          <option value="9|REED|49|80|G|4">Sax alto en Mi♭ (+9 st · Anche)</option>
+          <option value="7|BRASS|43|77|G|3">Cor en Fa (+7 st · Cuivre)</option>
+          <option value="0|BRASS|40|70|F|2">Trombone (Ut · Clé de Fa)</option>
         </select>
         <button type="button" class="primary" id="fr-play" style="padding:6px 10px;font-size:12px">▶ Écouter</button>
         <button type="button" id="fr-undo" style="padding:6px 9px;font-size:12px" title="Annuler la dernière note">↩</button>
@@ -229,7 +237,14 @@ h2 { font-size: clamp(1.6rem, 4vw, 2.2rem); line-height: 1.12; letter-spacing: -
       <div class="sim-staff" style="background:#fff;border-color:#e0ddd5;padding:6px">
         <svg id="fr-svg" viewBox="0 0 620 140" width="100%" height="120" aria-label="Portée du simulateur"></svg>
       </div>
-      <p class="sim-status" id="fr-status" style="font-size:11.5px;color:#285d4d;margin:0">7 notes chargées · Timbre : Piano feutré (ISO 226 + réverb. Schroeder).</p>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:6px">
+        <p class="sim-status" id="fr-status" style="font-size:11.5px;color:#285d4d;margin:0;flex:1">7 notes chargées · Timbre : Piano feutré.</p>
+        <div style="display:flex;align-items:center;gap:4px">
+          <button type="button" id="fr-oct-down" style="padding:3px 7px;font-size:11px;border-radius:6px;border:1px solid #d5d1c7;background:#fff;cursor:pointer" title="Octave inférieure">-1 oct</button>
+          <span id="fr-oct-label" style="font-size:11px;color:#6b675e;font-weight:600;min-width:54px;text-align:center">Do4–Do5</span>
+          <button type="button" id="fr-oct-up" style="padding:3px 7px;font-size:11px;border-radius:6px;border:1px solid #d5d1c7;background:#fff;cursor:pointer" title="Octave supérieure">+1 oct</button>
+        </div>
+      </div>
       <div class="piano" id="fr-piano" role="group" aria-label="Clavier d'essai" style="height:105px">
         <button type="button" class="wkey" data-midi="60" data-dia="0" data-name="Do4">Do4</button>
         <button type="button" class="wkey" data-midi="62" data-dia="1" data-name="Ré4">Ré</button>
@@ -267,11 +282,12 @@ h2 { font-size: clamp(1.6rem, 4vw, 2.2rem); line-height: 1.12; letter-spacing: -
     {dia:5,alt:-1,n:"La♭"},{dia:5,alt:0,n:"La"},{dia:6,alt:-1,n:"Si♭"},{dia:6,alt:0,n:"Si"}
   ];
   const TIMBRE_LABELS = {
-    WARM_KEYS: "Piano feutré",
+    WARM_KEYS: "Piano / Chœur",
     FLUTE: "Flûte traversière",
     REED: "Anche (bois)",
     BRASS: "Cuivre",
-    STRING: "Cordes"
+    STRING: "Harpe / Cordes",
+    BASS: "Basse / Contrebasse"
   };
 
   let events = [
@@ -280,14 +296,38 @@ h2 { font-size: clamp(1.6rem, 4vw, 2.2rem); line-height: 1.12; letter-spacing: -
   ];
   let selectedDur = 0.25;
   let dotted = false;
+  let keyOctave = 4;
   let ctx = null;
   let activeSource = null;
   let animId = null;
   let playingIdx = -1;
 
   function currentInst() {
-    const [shift, timbre, minM, maxM] = document.getElementById("fr-inst").value.split("|");
-    return { shift: parseInt(shift, 10) || 0, timbre: timbre || "WARM_KEYS", min: parseInt(minM, 10) || 48, max: parseInt(maxM, 10) || 88 };
+    const [shift, timbre, minM, maxM, clefMode, defOct] = document.getElementById("fr-inst").value.split("|");
+    return {
+      shift: parseInt(shift, 10) || 0,
+      timbre: timbre || "WARM_KEYS",
+      min: parseInt(minM, 10) || 48,
+      max: parseInt(maxM, 10) || 88,
+      clefMode: clefMode || "G",
+      defOct: parseInt(defOct, 10) || 4
+    };
+  }
+
+  function updateKeyboardOctave(newOct) {
+    keyOctave = Math.max(1, Math.min(5, newOct));
+    const baseMidi = (keyOctave + 1) * 12; // Do4 = 60
+    document.getElementById("fr-oct-label").textContent = `Do${keyOctave}–Do${keyOctave + 1}`;
+    const wOffsets = [0, 2, 4, 5, 7, 9, 11, 12];
+    const wNames = [`Do${keyOctave}`, "Ré", "Mi", "Fa", "Sol", "La", "Si", `Do${keyOctave + 1}`];
+    document.querySelectorAll("#fr-piano .wkey").forEach((btn, idx) => {
+      btn.dataset.midi = String(baseMidi + wOffsets[idx]);
+      btn.textContent = wNames[idx];
+    });
+    const bOffsets = [1, 3, 6, 8, 10];
+    document.querySelectorAll("#fr-piano .bkey").forEach((btn, idx) => {
+      btn.dataset.midi = String(baseMidi + bOffsets[idx]);
+    });
   }
 
   function midiToFreq(midi) {
@@ -322,8 +362,13 @@ h2 { font-size: clamp(1.6rem, 4vw, 2.2rem); line-height: 1.12; letter-spacing: -
       { midi: 77, freq: 689.1, url: "audio/trumpet_a4.wav" }
     ],
     STRING: [
+      { midi: 45, freq: 109.7, url: "audio/harp_a2.wav" },
       { midi: 62, freq: 290.1, url: "audio/violin_c4.wav" },
       { midi: 69, freq: 441.0, url: "audio/violin_a4.wav" }
+    ],
+    BASS: [
+      { midi: 38, freq: 73.5, url: "audio/bass_d2.wav" },
+      { midi: 45, freq: 110.2, url: "audio/bass_a1.wav" }
     ]
   };
   const decodedSamples = {};
@@ -395,16 +440,17 @@ h2 { font-size: clamp(1.6rem, 4vw, 2.2rem); line-height: 1.12; letter-spacing: -
     const isoGain = iso226Gain(freqHz);
     const b2 = brightness * brightness;
 
-    const attackSec = { WARM_KEYS: 0.008, FLUTE: 0.024, REED: 0.018, BRASS: 0.022, STRING: 0.014 }[timbre] || 0.010;
+    const attackSec = { WARM_KEYS: 0.008, FLUTE: 0.024, REED: 0.018, BRASS: 0.022, STRING: 0.014, BASS: 0.007 }[timbre] || 0.010;
     const attackSamples = Math.max(1, Math.floor(SAMPLE_RATE * attackSec));
-    const inharmonicity = timbre === "WARM_KEYS" ? 0.00014 : (timbre === "STRING" ? 0.00018 : 0.00002);
+    const inharmonicity = timbre === "WARM_KEYS" ? 0.00014 : ((timbre === "STRING" || timbre === "BASS") ? 0.00018 : 0.00002);
 
     const harmonicAmps = {
       WARM_KEYS: [1.00, 0.38 * brightness, 0.16 * brightness, 0.07 * b2, 0.03 * b2, 0.015 * b2],
       FLUTE:     [1.00, 0.18 * brightness, 0.05 * brightness, 0.012 * brightness, 0.0, 0.0],
       REED:      [1.00, 0.14 * brightness, 0.44 * brightness, 0.09 * b2, 0.20 * b2, 0.04 * b2],
       BRASS:     [0.92, 0.55 * brightness, 0.36 * brightness, 0.20 * b2, 0.11 * b2, 0.05 * b2],
-      STRING:    [1.00, 0.42 * brightness, 0.24 * brightness, 0.14 * b2, 0.08 * b2, 0.04 * b2]
+      STRING:    [1.00, 0.42 * brightness, 0.24 * brightness, 0.14 * b2, 0.08 * b2, 0.04 * b2],
+      BASS:      [1.00, 0.65 * brightness, 0.38 * brightness, 0.18 * b2, 0.08 * b2, 0.03 * b2]
     }[timbre];
 
     const harmonicDecays = {
@@ -412,7 +458,8 @@ h2 { font-size: clamp(1.6rem, 4vw, 2.2rem); line-height: 1.12; letter-spacing: -
       FLUTE:     [0.45, 0.95, 1.6, 2.4, 3.2, 4.0],
       REED:      [0.55, 1.1, 0.95, 2.1, 1.7, 3.4],
       BRASS:     [0.65, 1.0, 1.4, 2.0, 2.8, 3.9],
-      STRING:    [0.90, 1.5, 2.2, 3.1, 4.3, 5.8]
+      STRING:    [0.90, 1.5, 2.2, 3.1, 4.3, 5.8],
+      BASS:      [1.10, 2.0, 3.3, 4.8, 6.8, 9.2]
     }[timbre];
 
     const partialFreqs = [];
@@ -669,19 +716,33 @@ h2 { font-size: clamp(1.6rem, 4vw, 2.2rem); line-height: 1.12; letter-spacing: -
 
   function render() {
     const svg = document.getElementById("fr-svg");
-    const { shift, timbre, min, max } = currentInst();
+    const { shift, timbre, min, max, clefMode } = currentInst();
     const keyInfo = detectKey(events, shift);
     document.getElementById("fr-key-badge").textContent = "Tonalité : " + keyInfo.label;
 
-    const baseDia = 4 * 7 + 2; // Mi4 = ligne du bas (y=96)
-    const middleDia = 4 * 7 + 6; // Si4 = 3e ligne centrale (règle de hampe d'Elaine Gould)
+    let activeClef = clefMode;
+    if (activeClef === "AUTO") {
+      const pitched = events.filter(e => e.midi !== null).map(e => e.midi + shift).sort((a, b) => a - b);
+      const med = pitched.length ? pitched[Math.floor(pitched.length / 2)] : 60;
+      activeClef = med < 55 ? "F" : "G";
+    }
+    // Ligne du bas : Mi4 (30) en clé de Sol, Mi3 (23) en Sol 8vb, Sol2 (18) en clé de Fa
+    const baseDia = activeClef === "F" ? (2 * 7 + 4) : (activeClef === "G8" ? (3 * 7 + 2) : (4 * 7 + 2));
+    const middleDia = baseDia + 4;
     const bottomY = 96;
     let html = "";
     for (let i = 0; i < 5; i++) {
       const y = 40 + i * 14;
       html += `<line x1="12" y1="${y}" x2="608" y2="${y}" stroke="currentColor" stroke-opacity="0.35" stroke-width="1.3"/>`;
     }
-    html += `<text x="16" y="88" font-size="44" fill="var(--accent)" font-family="serif">&#119070;</text>`;
+    if (activeClef === "F") {
+      html += `<text x="16" y="78" font-size="38" fill="var(--accent)" font-family="serif">&#119074;</text>`;
+    } else if (activeClef === "G8") {
+      html += `<text x="16" y="88" font-size="42" fill="var(--accent)" font-family="serif">&#119070;</text>`;
+      html += `<text x="24" y="108" font-size="11" font-weight="800" fill="var(--accent)">8</text>`;
+    } else {
+      html += `<text x="16" y="88" font-size="44" fill="var(--accent)" font-family="serif">&#119070;</text>`;
+    }
     html += `<text x="52" y="66" font-size="16" font-weight="800" fill="currentColor" font-family="serif">4</text>`;
     html += `<text x="52" y="88" font-size="16" font-weight="800" fill="currentColor" font-family="serif">4</text>`;
 
@@ -795,7 +856,13 @@ h2 { font-size: clamp(1.6rem, 4vw, 2.2rem); line-height: 1.12; letter-spacing: -
     if (events.length > 10) events = events.slice(-10);
     render();
   });
-  document.getElementById("fr-inst").addEventListener("change", render);
+  document.getElementById("fr-oct-down").addEventListener("click", () => updateKeyboardOctave(keyOctave - 1));
+  document.getElementById("fr-oct-up").addEventListener("click", () => updateKeyboardOctave(keyOctave + 1));
+  document.getElementById("fr-inst").addEventListener("change", () => {
+    const { defOct } = currentInst();
+    updateKeyboardOctave(defOct);
+    render();
+  });
   document.getElementById("fr-undo").addEventListener("click", () => { events.pop(); render(); });
   document.getElementById("fr-clear").addEventListener("click", () => { stopPlayback(); events = []; render(); });
   document.getElementById("fr-play").addEventListener("click", playMelody);

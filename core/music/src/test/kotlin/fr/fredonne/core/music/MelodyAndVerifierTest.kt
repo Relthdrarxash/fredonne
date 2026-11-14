@@ -179,4 +179,34 @@ class MelodyAndVerifierTest {
         assertEquals(Durations.EIGHTH, moved.written)
         assertEquals(triplet, moved.tuplet)
     }
+
+    @Test
+    fun `harpe celtique signale les changements de leviers hors armure et adapte la clé`() {
+        val m = Melody(
+            cMajor, fourFour,
+            listOf(Measure(listOf(note(Step.C, 4), note(Step.F, 4, 1), note(Step.G, 4), note(Step.C, 4)))),
+        )
+        val issues = Verifier.check(m, Instruments.HARP_CELTIC)
+        assertEquals(listOf(LeverChangeRequired(0, 1, Pitch(Step.F, 4, 1))), issues)
+        assertEquals(Clef.TREBLE, Clef.resolveFor(m, Instruments.HARP_CELTIC))
+
+        val lowHarp = Melody(
+            cMajor, fourFour,
+            listOf(Measure(listOf(note(Step.C, 2), note(Step.G, 2), note(Step.C, 3), note(Step.E, 3)))),
+        )
+        assertEquals(Clef.BASS, Clef.resolveFor(lowHarp, Instruments.HARP_CELTIC))
+    }
+
+    @Test
+    fun `basse électrique et voix graves utilisent la clé de Fa ou Sol 8vb`() {
+        val bassLine = Melody(
+            cMajor, fourFour,
+            listOf(Measure(listOf(note(Step.E, 1), note(Step.A, 1), note(Step.D, 2), note(Step.G, 2)))),
+        )
+        assertTrue(Verifier.check(bassLine, Instruments.BASS_ELECTRIC).isEmpty())
+        assertEquals(Pitch(Step.E, 2), Instruments.BASS_ELECTRIC.toWritten(Pitch(Step.E, 1)))
+        assertEquals(Clef.BASS, Clef.resolveFor(bassLine, Instruments.BASS_ELECTRIC))
+        assertEquals(Clef.BASS, Clef.resolveFor(bassLine, Instruments.VOICE_BASS))
+        assertEquals(Clef.TREBLE_8VB, Clef.resolveFor(bassLine, Instruments.VOICE_TENOR))
+    }
 }

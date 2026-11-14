@@ -22,6 +22,7 @@ enum class InstrumentTimbre {
     REED,
     BRASS,
     STRING,
+    BASS,
 }
 
 data class MelodyEventTiming(
@@ -39,7 +40,8 @@ object ToneSynthesizer {
         "flute" -> InstrumentTimbre.FLUTE
         "oboe", "clarinet_bb", "sax_soprano", "sax_alto", "sax_tenor", "sax_baritone" -> InstrumentTimbre.REED
         "trumpet_bb", "horn_f", "trombone" -> InstrumentTimbre.BRASS
-        "violin", "guitar" -> InstrumentTimbre.STRING
+        "violin", "guitar", "harp_celtic" -> InstrumentTimbre.STRING
+        "bass_electric", "contrabass" -> InstrumentTimbre.BASS
         else -> InstrumentTimbre.WARM_KEYS
     }
 
@@ -119,12 +121,13 @@ object ToneSynthesizer {
             InstrumentTimbre.REED -> 0.018
             InstrumentTimbre.BRASS -> 0.024
             InstrumentTimbre.STRING -> 0.030
+            InstrumentTimbre.BASS -> 0.014
         }
         val attackSamples = (SAMPLE_RATE * attackSec).toInt().coerceAtLeast(1)
 
         val inharmonicity = when (timbre) {
             InstrumentTimbre.WARM_KEYS -> 0.00014
-            InstrumentTimbre.STRING -> 0.00010
+            InstrumentTimbre.STRING, InstrumentTimbre.BASS -> 0.00010
             else -> 0.0
         }
 
@@ -175,6 +178,15 @@ object ToneSynthesizer {
                 0.05 * b2,
                 0.025 * b2,
             )
+            InstrumentTimbre.BASS -> doubleArrayOf(
+                1.00,
+                0.62 * brightness,
+                0.36 * brightness,
+                0.18 * b2,
+                0.08 * b2,
+                0.03 * b2,
+                0.01 * b2,
+            )
         }
 
         // Décroissance naturelle : les partiels aigus s'éteignent plus vite que la fondamentale
@@ -184,6 +196,7 @@ object ToneSynthesizer {
             InstrumentTimbre.REED -> doubleArrayOf(0.42, 1.1, 0.9, 2.0, 1.6, 3.2, 2.8)
             InstrumentTimbre.BRASS -> doubleArrayOf(0.50, 0.95, 1.4, 2.0, 2.9, 4.0, 5.2)
             InstrumentTimbre.STRING -> doubleArrayOf(0.65, 1.25, 1.9, 2.8, 3.9, 5.2, 6.8)
+            InstrumentTimbre.BASS -> doubleArrayOf(1.10, 2.1, 3.4, 5.0, 7.2, 9.8, 12.5)
         }
 
         val partialOmega = DoubleArray(harmonicAmps.size)
@@ -209,14 +222,14 @@ object ToneSynthesizer {
             InstrumentTimbre.WARM_KEYS -> 115.0 // ~14 ms de feutre de marteau
             InstrumentTimbre.FLUTE -> 65.0      // ~22 ms de souffle doux
             InstrumentTimbre.REED, InstrumentTimbre.BRASS -> 85.0
-            InstrumentTimbre.STRING -> 75.0
+            InstrumentTimbre.STRING, InstrumentTimbre.BASS -> 75.0
         }
         val transientAmp = when (timbre) {
             InstrumentTimbre.WARM_KEYS -> 0.045
             InstrumentTimbre.FLUTE -> 0.028
             InstrumentTimbre.REED -> 0.020
             InstrumentTimbre.BRASS -> 0.022
-            InstrumentTimbre.STRING -> 0.020
+            InstrumentTimbre.STRING, InstrumentTimbre.BASS -> 0.020
         }
 
         // Niveau de maintien doux (sustain) pour éviter une coupure sèche sur les notes longues
@@ -229,7 +242,7 @@ object ToneSynthesizer {
         val lpAlpha = (2.0 * PI * (freqHz * 7.5).coerceIn(1400.0, 9500.0) / SAMPLE_RATE).coerceIn(0.08, 0.85)
 
         // Échantillon acoustique réel CC0 (VSCO 2 CE) interpolé par spline cubique d'Hermite
-        val refSample = AcousticSampleBank.get(timbre)
+        val refSample = AcousticSampleBank.get(timbre, freqHz)
         val refRootFreq = midiToFreq(refSample.rootMidi.toInt())
         val pitchRatio = (freqHz / refRootFreq).coerceIn(0.35, 2.85)
         val sampleStep = pitchRatio * (AcousticSampleBank.BANK_SAMPLE_RATE.toDouble() / SAMPLE_RATE)
