@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fredonne : écrire et transposer une mélodie hors-ligne</title>
+<meta name="description" content="Fredonne permet d'écrire une mélodie sur son téléphone, de l'écouter et de la transposer dans une autre tonalité ou pour un instrument transpositeur. Libre, gratuite, sans compte, sans réseau.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Fredonne : écrire et transposer une mélodie hors-ligne">
+<meta property="og:description" content="Écrire, vérifier et transposer une mélodie en quelques secondes, 100 % hors-ligne, libre et gratuite.">
+<style>
+:root {
+  --bg: #111318; --bg2: #1D212A; --fg: #F3F4F6; --muted: #A3AAB8; --line: #2C323F;
+  --accent: #F59E0B; --accent-solid: #D97706; --on-accent: #111318;
+  --panel: color-mix(in srgb, #fff 5%, transparent);
+  --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #FAF8F4; --bg2: #EFEAE0; --fg: #181A1F; --muted: #58606E; --line: #DDD6C8;
+    --accent: #B45309; --accent-solid: #B45309; --on-accent: #FFFFFF;
+    --panel: color-mix(in srgb, #000 3%, transparent);
+    color-scheme: light;
+  }
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  background-color: var(--bg);
+  background-image:
+    radial-gradient(48rem 34rem at 92% -6%, color-mix(in srgb, var(--accent-solid) 24%, transparent), transparent 62%),
+    radial-gradient(44rem 32rem at -8% 22%, color-mix(in srgb, #4B6B8A 20%, transparent), transparent 62%);
+  background-repeat: no-repeat;
+  color: var(--fg);
+  font-family: var(--font);
+  font-size: 18px;
+  line-height: 1.6;
+}
+a { color: inherit; }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; border-radius: 6px; }
+.wrap { max-width: 1060px; margin: 0 auto; padding-inline: 20px; }
+
+.top { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-block: 18px; flex-wrap: wrap; }
+.brand { display: flex; align-items: center; gap: 12px; text-decoration: none; font-weight: 700; font-size: 1.3rem; }
+.nav { display: flex; gap: 18px; flex-wrap: wrap; font-size: 0.95rem; color: var(--muted); }
+.nav a { text-decoration: none; }
+.nav a:hover { color: var(--fg); text-decoration: underline; }
+
+.hero { display: grid; gap: 32px; padding-block: 28px 44px; align-items: center; }
+.kicker { font-size: 0.8rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); margin: 0 0 14px; }
+h1 { font-size: clamp(2.2rem, 6.5vw, 3.8rem); line-height: 1.06; letter-spacing: -0.02em; margin: 0; font-weight: 700; }
+.lead { color: var(--muted); font-size: 1.12rem; max-width: 36em; margin: 20px 0 0; }
+.cta { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 28px; }
+.btn { display: inline-flex; align-items: center; gap: 8px; padding: 13px 22px; border-radius: 999px; font-weight: 700; text-decoration: none; border: 1.5px solid var(--line); }
+.btn.primary { background: linear-gradient(120deg, var(--accent-solid), color-mix(in srgb, var(--accent-solid) 75%, #78350F)); border-color: transparent; color: var(--on-accent); }
+.btn:hover { border-color: var(--fg); }
+.btn.primary:hover { filter: brightness(1.08); }
+
+.staff-card {
+  padding: 24px;
+  border-radius: 22px;
+  border: 1px solid var(--line);
+  background: linear-gradient(150deg, color-mix(in srgb, var(--accent-solid) 10%, var(--bg)), var(--panel));
+}
+.staff-card svg { width: 100%; height: auto; display: block; }
+@media (min-width: 860px) { .hero { grid-template-columns: 1.15fr 0.85fr; } }
+
+section { padding-block: 34px; }
+h2 { font-size: clamp(1.6rem, 4vw, 2.2rem); line-height: 1.12; letter-spacing: -0.015em; margin: 0 0 8px; }
+.sub { color: var(--muted); margin: 0 0 24px; max-width: 40em; }
+
+.cards { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); }
+.card { padding: 22px; border-radius: 20px; border: 1px solid var(--line); background: linear-gradient(150deg, color-mix(in srgb, var(--accent-solid) 8%, var(--bg)), var(--panel)); min-width: 0; }
+.card h3 { margin: 0 0 8px; font-size: 1.15rem; }
+.card p { margin: 0; color: var(--muted); font-size: 0.96rem; line-height: 1.5; }
+.card a { color: var(--accent); text-decoration: none; font-weight: 700; }
+.card a:hover { text-decoration: underline; }
+
+.rules { display: grid; gap: 0; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); border-top: 1px solid var(--line); list-style: none; padding: 0; margin: 0; }
+.rules li { padding: 16px 16px 16px 0; border-bottom: 1px solid var(--line); min-width: 0; }
+.rules strong { display: block; font-size: 1.06rem; }
+.rules span { color: var(--muted); font-size: 0.95rem; }
+
+.foot { border-top: 1px solid var(--line); padding-block: 30px 46px; color: var(--muted); font-size: 0.95rem; display: grid; gap: 10px; }
+.foot p { margin: 0; }
+.foot a { color: var(--fg); }
+</style>
+</head>
+<body>
+<header class="wrap top">
+  <a class="brand" href="./">
+    <svg width="36" height="36" viewBox="0 0 36 36" aria-hidden="true">
+      <rect width="36" height="36" rx="10" fill="#D97706"/>
+      <path d="M15 24V11l11-2.5v13" fill="none" stroke="#111318" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="12.5" cy="24.5" r="3" fill="#111318"/>
+      <circle cx="23.5" cy="22" r="3" fill="#111318"/>
+    </svg>
+    Fredonne
+  </a>
+  <nav class="nav" aria-label="Navigation">
+    <a href="#fonctions">Fonctions</a>
+    <a href="#confidentialite">Vie privée</a>
+    <a href="#atelier">Pilmil Studio</a>
+    <a href="confidentialite.html">Confidentialité</a>
+    <a href="https://github.com/Relthdrarxash/fredonne">Code source</a>
+  </nav>
+</header>
+
+<main>
+<div class="wrap hero">
+  <div>
+    <p class="kicker">Notation mélodique · En développement</p>
+    <h1>Écris, vérifie et transpose une mélodie en quelques secondes.</h1>
+    <p class="lead">Fredonne est une application Android libre pour noter une mélodie à une voix au clavier, l'écouter tout de suite et la transposer dans une autre tonalité ou pour un instrument transpositeur (Si&#9837;, Mi&#9837;, Fa). Tout reste sur votre téléphone.</p>
+    <div class="cta">
+      <a class="btn primary" href="https://github.com/Relthdrarxash/fredonne">Voir le code source</a>
+      <a class="btn" href="https://github.com/Relthdrarxash/fredonne/blob/main/docs/conception.md">Lire la conception</a>
+    </div>
+  </div>
+  <div class="staff-card" aria-hidden="true">
+    <svg viewBox="0 0 360 170">
+      <g stroke="currentColor" stroke-opacity="0.35" stroke-width="1.5">
+        <line x1="16" y1="45" x2="344" y2="45"/>
+        <line x1="16" y1="63" x2="344" y2="63"/>
+        <line x1="16" y1="81" x2="344" y2="81"/>
+        <line x1="16" y1="99" x2="344" y2="99"/>
+        <line x1="16" y1="117" x2="344" y2="117"/>
+        <line x1="196" y1="45" x2="196" y2="117" stroke-opacity="0.6"/>
+        <line x1="344" y1="45" x2="344" y2="117" stroke-opacity="0.6"/>
+      </g>
+      <text x="24" y="108" font-size="54" fill="var(--accent)" font-family="serif">&#119070;</text>
+      <g fill="currentColor">
+        <ellipse cx="96" cy="99" rx="8" ry="6" transform="rotate(-18 96 99)"/>
+        <line x1="103" y1="97" x2="103" y2="54" stroke="currentColor" stroke-width="2.2"/>
+        <ellipse cx="144" cy="90" rx="8" ry="6" transform="rotate(-18 144 90)"/>
+        <line x1="151" y1="88" x2="151" y2="45" stroke="currentColor" stroke-width="2.2"/>
+        <ellipse cx="228" cy="81" rx="8" ry="6" transform="rotate(-18 228 81)"/>
+        <line x1="235" y1="79" x2="235" y2="36" stroke="currentColor" stroke-width="2.2"/>
+        <ellipse cx="286" cy="72" rx="8" ry="6" transform="rotate(-18 286 72)"/>
+        <line x1="293" y1="70" x2="293" y2="28" stroke="currentColor" stroke-width="2.2"/>
+      </g>
+      <text x="16" y="152" font-size="13" fill="var(--muted)">4/4 · Clarinette en Si&#9837; (+2 demi-tons) · Hors-ligne</text>
+    </svg>
+  </div>
+</div>
+
+<section class="wrap" id="fonctions">
+  <h2>Pensée pour les répétitions et le quotidien</h2>
+  <p class="sub">Sans viser de minuscules lignes de portée avec le doigt, sans abonnement et sans filigrane.</p>
+  <div class="cards">
+    <article class="card"><h3>Saisie au clavier &amp; curseur</h3><p>Une rangée de durées à portée de pouce et un mini clavier de piano : chaque appui ajoute la note au curseur et la joue immédiatement.</p></article>
+    <article class="card"><h3>Transposition instantanée</h3><p>Changement de tonalité ou affichage adapté aux instruments transpositeurs (Si&#9837;, Mi&#9837;, Fa) avec orthographe juste des altérations.</p></article>
+    <article class="card"><h3>Vérificateur bienveillant</h3><p>Contrôle les durées de chaque mesure et la tessiture de l'instrument en toile de fond : il souligne sans jamais bloquer.</p></article>
+    <article class="card"><h3>Formats ouverts</h3><p>Import et export MusicXML, MIDI et PDF sans filigrane, via le sélecteur de fichiers Android.</p></article>
+  </div>
+</section>
+
+<section class="wrap" id="confidentialite">
+  <h2>Rien ne sort du téléphone</h2>
+  <ul class="rules" style="margin-top:20px">
+    <li><strong>Aucun compte</strong><span>Ouverture directe sur vos partitions.</span></li>
+    <li><strong>Aucune publicité</strong><span>Ni bannière, ni abonnement.</span></li>
+    <li><strong>Aucun traceur</strong><span>Aucune mesure d'usage.</span></li>
+    <li><strong>Aucun accès à Internet</strong><span>Zéro permission réseau dans le manifeste.</span></li>
+    <li><strong>Libre (MPL-2.0)</strong><span>Code auditable sur GitHub.</span></li>
+  </ul>
+</section>
+
+<section class="wrap" id="atelier">
+  <h2>Du même atelier (Pilmil Studio)</h2>
+  <p class="sub">Des applications libres, gratuites et sans accès à Internet.</p>
+  <div class="cards">
+    <article class="card"><h3>Sommelle</h3><p>Accompagnement de l'insomnie par la TCC-I, agenda du sommeil en 20 s et écran de nuit sans horloge.</p><p style="margin-top:10px"><a href="https://relthdrarxash.github.io/sommelle/">Découvrir Sommelle →</a></p></article>
+    <article class="card"><h3>Lunaison</h3><p>Suivi du cycle menstruel sans compte ni cloud, fiches médicales sourcées et bilan soignant.</p><p style="margin-top:10px"><a href="https://relthdrarxash.github.io/lunaison/">Découvrir Lunaison →</a></p></article>
+    <article class="card"><h3>Respire</h3><p>Pause de respiration avant les applis à défilement infini et filtre Reels / Shorts.</p><p style="margin-top:10px"><a href="https://relthdrarxash.github.io/respire/fr/">Découvrir Respire →</a></p></article>
+    <article class="card"><h3>Sauve</h3><p>Premiers secours anti-panique hors-ligne à la voix et par vibrations.</p><p style="margin-top:10px"><a href="https://relthdrarxash.github.io/sauve/">Découvrir Sauve →</a></p></article>
+  </div>
+</section>
+</main>
+
+<footer class="wrap foot">
+  <p>Fredonne fait partie des applis de Pilmil Studio.</p>
+  <p>Contact : <a href="mailto:pilmil.studio@proton.me">pilmil.studio@proton.me</a> · <a href="confidentialite.html">Confidentialité</a> · <a href="https://github.com/Relthdrarxash/fredonne/blob/main/LICENSE">Licence MPL-2.0</a></p>
+</footer>
+</body>
+</html>
