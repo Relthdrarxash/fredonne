@@ -197,28 +197,39 @@ h2 { font-size: clamp(1.6rem, 4vw, 2.2rem); line-height: 1.12; letter-spacing: -
 
 <section class="wrap" id="simulateur">
   <h2>Essayer l'application en direct</h2>
-  <p class="sub">Projetez-vous dans l'interface mobile de Fredonne : choisissez un instrument, tapez des notes sur le clavier et écoutez le rendu.</p>
+  <p class="sub">Projetez-vous dans l'interface mobile de Fredonne : choisissez un instrument (timbre acoustique et transposition), la durée rythmique, tapez des notes sur le clavier et écoutez le rendu synthétisé à 44,1 kHz.</p>
   <div style="display:flex;justify-content:center">
-    <div style="width:min(360px,100%);border:8px solid #1e1d1a;border-radius:32px;background:#faf8f4;color:#1e1d1a;overflow:hidden;box-shadow:0 18px 44px rgba(0,0,0,.22);padding:14px;display:grid;gap:10px">
+    <div style="width:min(400px,100%);border:8px solid #1e1d1a;border-radius:32px;background:#faf8f4;color:#1e1d1a;overflow:hidden;box-shadow:0 18px 44px rgba(0,0,0,.22);padding:14px;display:grid;gap:10px">
       <div style="display:flex;justify-content:space-between;align-items:center">
         <strong style="font-size:16px">Fredonne</strong>
-        <span style="font-size:11px;color:#6b675e">100 % hors-ligne</span>
+        <span id="fr-key-badge" style="font-size:11px;color:#285d4d;background:#e6f0ec;padding:2px 8px;border-radius:999px;font-weight:600">Tonalité : Do majeur</span>
       </div>
       <div class="sim-toolbar" style="gap:6px">
-        <select id="fr-inst" style="flex:1;min-width:0;font-size:12px;padding:6px 10px">
-          <option value="0">Concert (Ut)</option>
-          <option value="2">Clarinette (Sib · +2 st)</option>
-          <option value="9">Sax alto (Mib · +9 st)</option>
-          <option value="7">Cor (Fa · +7 st)</option>
+        <select id="fr-inst" style="flex:1;min-width:0;font-size:12px;padding:6px 10px" aria-label="Instrument et timbre">
+          <option value="0|WARM_KEYS|52|88">Concert · Piano feutré (Ut)</option>
+          <option value="0|FLUTE|60|96">Flûte traversière (Ut · Vent)</option>
+          <option value="0|STRING|55|88">Violon (Ut · Cordes)</option>
+          <option value="2|REED|50|86">Clarinette en Si♭ (+2 st · Anche)</option>
+          <option value="2|BRASS|53|82">Trompette en Si♭ (+2 st · Cuivre)</option>
+          <option value="9|REED|49|80">Sax alto en Mi♭ (+9 st · Anche)</option>
+          <option value="7|BRASS|43|77">Cor en Fa (+7 st · Cuivre)</option>
         </select>
-        <button type="button" class="primary" id="fr-play" style="padding:6px 10px;font-size:12px">Écouter</button>
-        <button type="button" id="fr-undo" style="padding:6px 9px;font-size:12px">↩</button>
+        <button type="button" class="primary" id="fr-play" style="padding:6px 10px;font-size:12px">▶ Écouter</button>
+        <button type="button" id="fr-undo" style="padding:6px 9px;font-size:12px" title="Annuler la dernière note">↩</button>
         <button type="button" id="fr-clear" style="padding:6px 9px;font-size:12px">Vider</button>
       </div>
-      <div class="sim-staff" style="background:#fff;border-color:#e0ddd5;padding:6px">
-        <svg id="fr-svg" viewBox="0 0 600 130" width="100%" height="110" aria-label="Portée du simulateur"></svg>
+      <div class="sim-toolbar" id="fr-durs" style="gap:4px;justify-content:space-between" role="group" aria-label="Durée rythmique">
+        <button type="button" data-dur="0.125" style="flex:1;padding:5px 6px;font-size:11px">♪ Croche</button>
+        <button type="button" data-dur="0.25" class="primary" style="flex:1;padding:5px 6px;font-size:11px">♩ Noire</button>
+        <button type="button" data-dur="0.5" style="flex:1;padding:5px 6px;font-size:11px">𝅗𝅥 Blanche</button>
+        <button type="button" data-dur="1.0" style="flex:1;padding:5px 6px;font-size:11px">𝅝 Ronde</button>
+        <button type="button" id="fr-dot" style="padding:5px 8px;font-size:11px" title="Note pointée (+50 %)">• Point</button>
+        <button type="button" id="fr-rest" style="padding:5px 8px;font-size:11px" title="Insérer un silence">𝄽 Silence</button>
       </div>
-      <p class="sim-status" id="fr-status" style="font-size:12px;color:#285d4d">4 notes chargées.</p>
+      <div class="sim-staff" style="background:#fff;border-color:#e0ddd5;padding:6px">
+        <svg id="fr-svg" viewBox="0 0 620 140" width="100%" height="120" aria-label="Portée du simulateur"></svg>
+      </div>
+      <p class="sim-status" id="fr-status" style="font-size:11.5px;color:#285d4d;margin:0">7 notes chargées · Timbre : Piano feutré (ISO 226 + réverb. Schroeder).</p>
       <div class="piano" id="fr-piano" role="group" aria-label="Clavier d'essai" style="height:105px">
         <button type="button" class="wkey" data-midi="60" data-dia="0" data-name="Do4">Do4</button>
         <button type="button" class="wkey" data-midi="62" data-dia="1" data-name="Ré4">Ré</button>
@@ -231,7 +242,7 @@ h2 { font-size: clamp(1.6rem, 4vw, 2.2rem); line-height: 1.12; letter-spacing: -
         <button type="button" class="bkey" style="left:12.5%" data-midi="61" data-dia="0" data-sharp="1" data-name="Do#4">Do#</button>
         <button type="button" class="bkey" style="left:25%" data-midi="63" data-dia="1" data-sharp="1" data-name="Ré#4">Ré#</button>
         <button type="button" class="bkey" style="left:50%" data-midi="66" data-dia="3" data-sharp="1" data-name="Fa#4">Fa#</button>
-        <button type="button" class="bkey" style="left:62.5%" data-midi="68" data-dia="4" data-sharp="1" data-name="Sol#4">Sol#</button>
+        <button type="button" class="bkey" data-midi="68" style="left:62.5%" data-dia="4" data-sharp="1" data-name="Sol#4">Sol#</button>
         <button type="button" class="bkey" style="left:75%" data-midi="70" data-dia="5" data-sharp="1" data-name="La#4">La#</button>
       </div>
     </div>
@@ -239,97 +250,464 @@ h2 { font-size: clamp(1.6rem, 4vw, 2.2rem); line-height: 1.12; letter-spacing: -
 </section>
 <script>
 (function(){
-  const NAMES = ["Do","Do#","Ré","Ré#","Mi","Fa","Fa#","Sol","Sol#","La","La#","Si"];
-  const DIA_MAP = [0,0,1,1,2,3,3,4,4,5,5,6];
-  const SHARP_MAP = [0,1,0,1,0,0,1,0,1,0,1,0];
-  let notes = [60, 62, 64, 67];
+  const SAMPLE_RATE = 44100;
+  const MAJOR_PROF = [6.35, 2.23, 3.48, 2.33, 4.38, 4.09, 2.52, 5.19, 2.39, 3.66, 2.29, 2.88];
+  const MINOR_PROF = [6.33, 2.68, 3.52, 5.38, 2.60, 3.53, 2.54, 4.75, 3.98, 2.69, 3.34, 3.17];
+  const KEY_NAMES_MAJ = ["Do majeur","Ré♭ majeur","Ré majeur","Mi♭ majeur","Mi majeur","Fa majeur","Fa♯ majeur","Sol majeur","La♭ majeur","La majeur","Si♭ majeur","Si majeur"];
+  const KEY_NAMES_MIN = ["Do mineur","Do♯ mineur","Ré mineur","Mi♭ mineur","Mi mineur","Fa mineur","Fa♯ mineur","Sol mineur","Sol♯ mineur","La mineur","Si♭ mineur","Si mineur"];
+  const FLAT_PCS = new Set([1, 3, 5, 8, 10]); // tonalités à bémols (Réb, Mib, Fa, Lab, Sib)
+  const SHARP_SPELL = [
+    {dia:0,alt:0,n:"Do"},{dia:0,alt:1,n:"Do♯"},{dia:1,alt:0,n:"Ré"},{dia:1,alt:1,n:"Ré♯"},
+    {dia:2,alt:0,n:"Mi"},{dia:3,alt:0,n:"Fa"},{dia:3,alt:1,n:"Fa♯"},{dia:4,alt:0,n:"Sol"},
+    {dia:4,alt:1,n:"Sol♯"},{dia:5,alt:0,n:"La"},{dia:5,alt:1,n:"La♯"},{dia:6,alt:0,n:"Si"}
+  ];
+  const FLAT_SPELL = [
+    {dia:0,alt:0,n:"Do"},{dia:1,alt:-1,n:"Ré♭"},{dia:1,alt:0,n:"Ré"},{dia:2,alt:-1,n:"Mi♭"},
+    {dia:2,alt:0,n:"Mi"},{dia:3,alt:0,n:"Fa"},{dia:4,alt:-1,n:"Sol♭"},{dia:4,alt:0,n:"Sol"},
+    {dia:5,alt:-1,n:"La♭"},{dia:5,alt:0,n:"La"},{dia:6,alt:-1,n:"Si♭"},{dia:6,alt:0,n:"Si"}
+  ];
+  const TIMBRE_LABELS = {
+    WARM_KEYS: "Piano feutré",
+    FLUTE: "Flûte traversière",
+    REED: "Anche (bois)",
+    BRASS: "Cuivre",
+    STRING: "Cordes"
+  };
+
+  let events = [
+    {midi:60, dur:0.25}, {midi:62, dur:0.25}, {midi:64, dur:0.25}, {midi:60, dur:0.25},
+    {midi:64, dur:0.25}, {midi:65, dur:0.25}, {midi:67, dur:0.5}
+  ];
+  let selectedDur = 0.25;
+  let dotted = false;
   let ctx = null;
-  function tone(midi, dur=0.42) {
-    if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
-    if (ctx.state === "suspended") ctx.resume();
-    const now = ctx.currentTime;
-    const freq = 440 * Math.pow(2, (midi - 69) / 12);
-    const filter = ctx.createBiquadFilter();
-    filter.type = "lowpass";
-    filter.frequency.setValueAtTime(Math.min(freq * 6, 7500), now);
-    filter.frequency.exponentialRampToValueAtTime(Math.max(freq * 1.6, 220), now + dur);
+  let activeSource = null;
+  let animId = null;
+  let playingIdx = -1;
 
-    const master = ctx.createGain();
-    master.gain.setValueAtTime(0.0001, now);
-    master.gain.linearRampToValueAtTime(0.28, now + 0.012);
-    master.gain.exponentialRampToValueAtTime(0.0001, now + dur);
-
-    const partials = [
-      { mult: 1.0, type: "sine", gain: 0.68, decay: dur },
-      { mult: 1.0012, type: "sine", gain: 0.32, decay: dur },
-      { mult: 2.0 * Math.sqrt(1 + 0.00018 * 4), type: "sine", gain: 0.36, decay: dur * 0.62 },
-      { mult: 3.0 * Math.sqrt(1 + 0.00018 * 9), type: "sine", gain: 0.16, decay: dur * 0.42 },
-      { mult: 4.0 * Math.sqrt(1 + 0.00018 * 16), type: "triangle", gain: 0.07, decay: dur * 0.28 }
-    ];
-    filter.connect(master).connect(ctx.destination);
-    partials.forEach((p) => {
-      const osc = ctx.createOscillator();
-      const pg = ctx.createGain();
-      osc.type = p.type;
-      osc.frequency.value = freq * p.mult;
-      pg.gain.setValueAtTime(p.gain, now);
-      pg.gain.exponentialRampToValueAtTime(0.001, now + p.decay);
-      osc.connect(pg).connect(filter);
-      osc.start(now);
-      osc.stop(now + dur + 0.03);
-    });
+  function currentInst() {
+    const [shift, timbre, minM, maxM] = document.getElementById("fr-inst").value.split("|");
+    return { shift: parseInt(shift, 10) || 0, timbre: timbre || "WARM_KEYS", min: parseInt(minM, 10) || 48, max: parseInt(maxM, 10) || 88 };
   }
-  function midiDia(m) {
+
+  function midiToFreq(midi) {
+    return 440.0 * Math.pow(2.0, (midi - 69) / 12.0);
+  }
+
+  // Pondération psychoacoustique ISO 226:2023 (identique à ToneSynthesizer.kt)
+  function iso226Gain(freqHz) {
+    const f = Math.max(55.0, Math.min(4200.0, freqHz));
+    const lowBoost = f < 240.0 ? 1.0 + 0.22 * Math.max(0.0, Math.min(1.0, (240.0 - f) / 185.0)) : 1.0;
+    const logRatio = Math.log(f / 3000.0);
+    const earCanalNotch = 1.0 - 0.28 * Math.exp(-(logRatio * logRatio) / 0.32);
+    return Math.max(0.65, Math.min(1.25, lowBoost * earCanalNotch));
+  }
+
+  // Synthèse spectrale + inharmonicité de Fletcher + vibrato + ouverture des cuivres (ToneSynthesizer.kt)
+  function synthesizeNoteFloat(freqHz, durationMs, tailMs, timbre) {
+    const activeCount = Math.floor((SAMPLE_RATE * durationMs) / 1000);
+    const tailCount = Math.floor((SAMPLE_RATE * tailMs) / 1000);
+    const totalCount = activeCount + tailCount;
+    if (totalCount <= 0) return new Float32Array(0);
+
+    const out = new Float32Array(totalCount);
+    const brightness = Math.max(0.35, Math.min(1.35, Math.pow(440.0 / Math.max(80.0, freqHz), 0.45)));
+    const isoGain = iso226Gain(freqHz);
+    const b2 = brightness * brightness;
+
+    const attackSec = { WARM_KEYS: 0.012, FLUTE: 0.032, REED: 0.022, BRASS: 0.028, STRING: 0.025 }[timbre] || 0.012;
+    const attackSamples = Math.max(1, Math.floor(SAMPLE_RATE * attackSec));
+    const inharmonicity = timbre === "WARM_KEYS" ? 0.00018 : (timbre === "STRING" ? 0.00022 : 0.00003);
+
+    const harmonicAmps = {
+      WARM_KEYS: [1.00, 0.42 * brightness, 0.20 * brightness, 0.10 * b2, 0.05 * b2, 0.025 * b2],
+      FLUTE:     [1.00, 0.22 * brightness, 0.07 * brightness, 0.02 * brightness, 0.008 * brightness, 0.0],
+      REED:      [1.00, 0.18 * brightness, 0.52 * brightness, 0.12 * b2, 0.26 * b2, 0.06 * b2],
+      BRASS:     [0.90, 0.65 * brightness, 0.45 * brightness, 0.28 * b2, 0.16 * b2, 0.09 * b2],
+      STRING:    [1.00, 0.50 * brightness, 0.33 * brightness, 0.22 * b2, 0.14 * b2, 0.08 * b2]
+    }[timbre];
+
+    const harmonicDecays = {
+      WARM_KEYS: [1.6, 2.8, 4.4, 6.5, 9.0, 12.0],
+      FLUTE:     [0.55, 1.1, 1.8, 2.6, 3.5, 4.5],
+      REED:      [0.65, 1.3, 1.1, 2.4, 1.9, 3.8],
+      BRASS:     [0.75, 1.1, 1.5, 2.1, 3.0, 4.2],
+      STRING:    [0.95, 1.6, 2.3, 3.2, 4.5, 6.0]
+    }[timbre];
+
+    const hasVibrato = timbre === "FLUTE" || timbre === "STRING" || timbre === "REED";
+    const partialFreqs = [];
+    const partialGains = [];
+    for (let h = 1; h < harmonicAmps.length; h++) {
+      const n = h + 1;
+      const pf = freqHz * n * Math.sqrt(1.0 + inharmonicity * n * n);
+      partialFreqs.push(pf);
+      partialGains.push(pf < SAMPLE_RATE * 0.42 ? harmonicAmps[h] * iso226Gain(pf) : 0.0);
+    }
+
+    for (let i = 0; i < totalCount; i++) {
+      const t = i / SAMPLE_RATE;
+      const vib = (hasVibrato && t > 0.08)
+        ? Math.min(1.0, (t - 0.08) / 0.18) * 0.0022 * Math.sin(2.0 * Math.PI * 5.2 * t)
+        : 0.0;
+      const effFreq = freqHz * (1.0 + vib);
+      const twoPiT = 2.0 * Math.PI * t;
+      const d0 = Math.exp(-harmonicDecays[0] * t);
+      let sum = (0.68 * Math.sin(twoPiT * effFreq) + 0.32 * Math.sin(twoPiT * effFreq * 1.0012)) * d0;
+
+      const brassBloom = timbre === "BRASS" ? Math.max(0.25, Math.min(1.0, t / 0.045)) : 1.0;
+      for (let h = 1; h < harmonicAmps.length; h++) {
+        const pg = partialGains[h - 1];
+        if (pg > 0.0) {
+          const pf = partialFreqs[h - 1] * (1.0 + vib);
+          sum += pg * brassBloom * Math.sin(twoPiT * pf) * Math.exp(-harmonicDecays[h] * t);
+        }
+      }
+
+      const attackEnv = i < attackSamples ? Math.pow(Math.sin((i / attackSamples) * (Math.PI / 2.0)), 2) : 1.0;
+      const releaseEnv = (i >= activeCount && tailCount > 0)
+        ? Math.pow(Math.max(0.0, 1.0 - (i - activeCount) / tailCount), 2)
+        : 1.0;
+
+      out[i] = sum * 0.34 * isoGain * attackEnv * releaseEnv;
+    }
+    return out;
+  }
+
+  // Réverbérateur de Schroeder (1962) / Moorer (1979) : 4 peignes passe-bas + 2 diffuseurs all-pass
+  function createRoomReverb(sampleRate) {
+    const combDelays = [0.023, 0.031, 0.041, 0.053].map(s => Math.max(1, Math.floor(sampleRate * s)));
+    const combBuffers = combDelays.map(d => new Float32Array(d));
+    const combIndices = new Int32Array(4);
+    const lpState = new Float32Array(4);
+    const feedback = 0.38, damping = 0.45;
+
+    const apDelays = [0.0050, 0.0017].map(s => Math.max(1, Math.floor(sampleRate * s)));
+    const apBuffers = apDelays.map(d => new Float32Array(d));
+    const apIndices = new Int32Array(2);
+    const apGain = 0.5, wetMix = 0.20;
+
+    return function process(input) {
+      const out = new Float32Array(input.length);
+      for (let i = 0; i < input.length; i++) {
+        const dry = input[i];
+        let wet = 0.0;
+        for (let c = 0; c < 4; c++) {
+          const buf = combBuffers[c];
+          const idx = combIndices[c];
+          const delayed = buf[idx];
+          const filtered = delayed * (1.0 - damping) + lpState[c] * damping;
+          lpState[c] = filtered;
+          buf[idx] = dry + filtered * feedback;
+          combIndices[c] = (idx + 1) % buf.length;
+          wet += delayed;
+        }
+        let diffused = wet * 0.25;
+        for (let a = 0; a < 2; a++) {
+          const apBuf = apBuffers[a];
+          const apIdx = apIndices[a];
+          const bufOut = apBuf[apIdx];
+          const inputPlusFb = diffused + bufOut * apGain;
+          apBuf[apIdx] = inputPlusFb;
+          apIndices[a] = (apIdx + 1) % apBuf.length;
+          diffused = bufOut - inputPlusFb * apGain;
+        }
+        out[i] = Math.tanh((dry * (1.0 - wetMix * 0.4) + diffused * wetMix) * 1.15);
+      }
+      return out;
+    };
+  }
+
+  function ensureAudio() {
+    if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: SAMPLE_RATE });
+    if (ctx.state === "suspended") ctx.resume();
+    return ctx;
+  }
+
+  function playNote(midi, durBeats) {
+    const audio = ensureAudio();
+    const { timbre } = currentInst();
+    const durMs = Math.max(140, Math.round(durBeats * 4 * 520));
+    const dry = synthesizeNoteFloat(midiToFreq(midi), durMs, 340, timbre);
+    const wet = createRoomReverb(SAMPLE_RATE)(dry);
+    const buf = audio.createBuffer(1, wet.length, SAMPLE_RATE);
+    buf.getChannelData(0).set(wet);
+    const src = audio.createBufferSource();
+    src.buffer = buf;
+    src.connect(audio.destination);
+    src.start();
+  }
+
+  function stopPlayback() {
+    if (activeSource) {
+      try { activeSource.stop(); } catch (_) {}
+      activeSource = null;
+    }
+    if (animId) {
+      cancelAnimationFrame(animId);
+      animId = null;
+    }
+    playingIdx = -1;
+    document.getElementById("fr-play").textContent = "▶ Écouter";
+    render();
+  }
+
+  function playMelody() {
+    if (activeSource) {
+      stopPlayback();
+      return;
+    }
+    if (!events.length) return;
+    const audio = ensureAudio();
+    const { timbre } = currentInst();
+    const wholeMs = (4.0 * 60000.0) / 104; // 104 BPM
+    const reverb = createRoomReverb(SAMPLE_RATE);
+    const slices = [];
+    const timings = [];
+    let overlapTail = new Float32Array(0);
+    let elapsedSamples = 0;
+
+    events.forEach((ev, idx) => {
+      const eventMs = Math.max(80, Math.round(ev.dur * wholeMs));
+      const eventCount = Math.floor((SAMPLE_RATE * eventMs) / 1000);
+      timings.push({ idx, startSec: elapsedSamples / SAMPLE_RATE });
+
+      const gen = ev.midi !== null
+        ? synthesizeNoteFloat(midiToFreq(ev.midi), eventMs, 260, timbre)
+        : new Float32Array(eventCount);
+      const combined = new Float32Array(Math.max(gen.length, overlapTail.length));
+      for (let i = 0; i < gen.length; i++) combined[i] += gen[i];
+      for (let i = 0; i < overlapTail.length; i++) combined[i] += overlapTail[i];
+
+      slices.push(reverb(combined.subarray(0, eventCount)));
+      overlapTail = combined.length > eventCount ? combined.subarray(eventCount) : new Float32Array(0);
+      elapsedSamples += eventCount;
+    });
+
+    const endPad = Math.floor((SAMPLE_RATE * 320) / 1000);
+    const endMix = new Float32Array(Math.max(overlapTail.length, endPad));
+    for (let i = 0; i < overlapTail.length; i++) endMix[i] = overlapTail[i];
+    slices.push(reverb(endMix));
+
+    const totalLen = slices.reduce((acc, s) => acc + s.length, 0);
+    const buf = audio.createBuffer(1, totalLen, SAMPLE_RATE);
+    const ch = buf.getChannelData(0);
+    let offset = 0;
+    slices.forEach(s => { ch.set(s, offset); offset += s.length; });
+
+    const src = audio.createBufferSource();
+    src.buffer = buf;
+    src.connect(audio.destination);
+    activeSource = src;
+    document.getElementById("fr-play").textContent = "■ Stop";
+    const t0 = audio.currentTime;
+    src.onended = () => {
+      if (activeSource === src) stopPlayback();
+    };
+    src.start();
+
+    function tick() {
+      if (!activeSource) return;
+      const elapsed = audio.currentTime - t0;
+      let active = 0;
+      for (let i = 0; i < timings.length; i++) {
+        if (timings[i].startSec <= elapsed) active = timings[i].idx;
+      }
+      if (active !== playingIdx) {
+        playingIdx = active;
+        render();
+      }
+      animId = requestAnimationFrame(tick);
+    }
+    animId = requestAnimationFrame(tick);
+  }
+
+  // Détection de tonalité de Krumhansl-Schmuckler (pondérée par durée)
+  function detectKey(evList, shift) {
+    const hist = new Float64Array(12);
+    let total = 0;
+    evList.forEach(ev => {
+      if (ev.midi !== null) {
+        const pc = (((ev.midi + shift) % 12) + 12) % 12;
+        hist[pc] += ev.dur;
+        total += ev.dur;
+      }
+    });
+    if (total === 0) return { tonicPc: 0, minor: false, label: "Do majeur", useFlats: false };
+
+    function corr(prof, tonic) {
+      let mx = 0, my = 0;
+      for (let i = 0; i < 12; i++) { mx += hist[i]; my += prof[(i - tonic + 12) % 12]; }
+      mx /= 12; my /= 12;
+      let num = 0, dx2 = 0, dy2 = 0;
+      for (let i = 0; i < 12; i++) {
+        const dx = hist[i] - mx, dy = prof[(i - tonic + 12) % 12] - my;
+        num += dx * dy; dx2 += dx * dx; dy2 += dy * dy;
+      }
+      return (dx2 * dy2) > 1e-9 ? num / Math.sqrt(dx2 * dy2) : 0;
+    }
+
+    let best = { tonicPc: 0, minor: false, score: -99, label: "Do majeur", useFlats: false };
+    for (let t = 0; t < 12; t++) {
+      const sMaj = corr(MAJOR_PROF, t);
+      if (sMaj > best.score) best = { tonicPc: t, minor: false, score: sMaj, label: KEY_NAMES_MAJ[t], useFlats: FLAT_PCS.has(t) };
+      const sMin = corr(MINOR_PROF, t);
+      if (sMin > best.score) best = { tonicPc: t, minor: true, score: sMin, label: KEY_NAMES_MIN[t], useFlats: FLAT_PCS.has((t + 3) % 12) };
+    }
+    return best;
+  }
+
+  // Orthographe enharmonique contextuelle (PS13 simplifié selon tonalité et mouvement mélodique)
+  function spellMidi(m, useFlats, nextMidi) {
     const pc = ((m % 12) + 12) % 12;
     const oct = Math.floor(m / 12) - 1;
-    return { dia: oct * 7 + DIA_MAP[pc], sharp: SHARP_MAP[pc], label: NAMES[pc] + oct };
+    let chooseFlats = useFlats;
+    if (nextMidi !== null && nextMidi !== undefined) {
+      if (nextMidi - m === -1) chooseFlats = true;
+      else if (nextMidi - m === 1) chooseFlats = false;
+    }
+    const entry = (chooseFlats ? FLAT_SPELL : SHARP_SPELL)[pc];
+    return { dia: oct * 7 + entry.dia, alt: entry.alt, label: entry.n + oct };
   }
+
+  // Espacement logarithmique de Gourlay (1987)
+  function gourlayWidth(dur) {
+    const ratio = Math.max(0.25, dur / 0.25);
+    return 44 * (1 + 0.55 * Math.log2(ratio));
+  }
+
   function render() {
     const svg = document.getElementById("fr-svg");
-    const shift = parseInt(document.getElementById("fr-inst").value, 10) || 0;
-    const baseDia = 4 * 7 + 2; // E4 = ligne du bas
-    const bottomY = 92;
+    const { shift, timbre, min, max } = currentInst();
+    const keyInfo = detectKey(events, shift);
+    document.getElementById("fr-key-badge").textContent = "Tonalité : " + keyInfo.label;
+
+    const baseDia = 4 * 7 + 2; // Mi4 = ligne du bas (y=96)
+    const middleDia = 4 * 7 + 6; // Si4 = 3e ligne centrale (règle de hampe d'Elaine Gould)
+    const bottomY = 96;
     let html = "";
     for (let i = 0; i < 5; i++) {
-      const y = 36 + i * 14;
-      html += `<line x1="12" y1="${y}" x2="588" y2="${y}" stroke="currentColor" stroke-opacity="0.35" stroke-width="1.3"/>`;
+      const y = 40 + i * 14;
+      html += `<line x1="12" y1="${y}" x2="608" y2="${y}" stroke="currentColor" stroke-opacity="0.35" stroke-width="1.3"/>`;
     }
-    html += `<text x="18" y="84" font-size="44" fill="var(--accent)" font-family="serif">&#119070;</text>`;
-    notes.slice(-10).forEach((m, idx) => {
-      const wm = m + shift;
-      const info = midiDia(wm);
-      const y = bottomY - (info.dia - baseDia) * 7;
-      const x = 86 + idx * 48;
-      if (info.dia <= baseDia - 2) {
-        html += `<line x1="${x-12}" y1="${bottomY+14}" x2="${x+12}" y2="${bottomY+14}" stroke="currentColor" stroke-width="1.4"/>`;
+    html += `<text x="16" y="88" font-size="44" fill="var(--accent)" font-family="serif">&#119070;</text>`;
+    html += `<text x="52" y="66" font-size="16" font-weight="800" fill="currentColor" font-family="serif">4</text>`;
+    html += `<text x="52" y="88" font-size="16" font-weight="800" fill="currentColor" font-family="serif">4</text>`;
+
+    let x = 86;
+    let beatAcc = 0;
+    let outOfRangeCount = 0;
+    const visible = events.slice(-10);
+    const offsetIdx = Math.max(0, events.length - visible.length);
+
+    visible.forEach((ev, localIdx) => {
+      const globalIdx = offsetIdx + localIdx;
+      const isPlaying = globalIdx === playingIdx;
+      const isDotted = Math.abs(ev.dur - 0.1875) < 0.01 || Math.abs(ev.dur - 0.375) < 0.01 || Math.abs(ev.dur - 0.75) < 0.01 || Math.abs(ev.dur - 1.5) < 0.01;
+      const baseDur = isDotted ? ev.dur / 1.5 : ev.dur;
+
+      if (ev.midi === null) {
+        const col = isPlaying ? "#1f6e8c" : "currentColor";
+        html += `<text x="${x}" y="74" font-size="22" text-anchor="middle" fill="${col}">&#119099;</text>`;
+        if (isDotted) html += `<circle cx="${x+10}" cy="64" r="2.2" fill="${col}"/>`;
+      } else {
+        const outRange = ev.midi < min || ev.midi > max;
+        if (outRange) outOfRangeCount++;
+        const wm = ev.midi + shift;
+        const nextEv = visible[localIdx + 1];
+        const nextWm = (nextEv && nextEv.midi !== null) ? nextEv.midi + shift : null;
+        const info = spellMidi(wm, keyInfo.useFlats, nextWm);
+        const y = bottomY - (info.dia - baseDia) * 7;
+        const col = isPlaying ? "#1f6e8c" : (outRange ? "#b33a3a" : "currentColor");
+
+        if (isPlaying) {
+          html += `<rect x="${x-14}" y="22" width="28" height="92" rx="6" fill="#1f6e8c" fill-opacity="0.14"/>`;
+        }
+        // Lignes supplémentaires (Do4 et en dessous, ou La5 et au-dessus)
+        for (let d = baseDia - 2; d >= info.dia; d -= 2) {
+          const ly = bottomY - (d - baseDia) * 7;
+          html += `<line x1="${x-12}" y1="${ly}" x2="${x+12}" y2="${ly}" stroke="currentColor" stroke-width="1.4"/>`;
+        }
+        for (let d = baseDia + 10; d <= info.dia; d += 2) {
+          const ly = bottomY - (d - baseDia) * 7;
+          html += `<line x1="${x-12}" y1="${ly}" x2="${x+12}" y2="${ly}" stroke="currentColor" stroke-width="1.4"/>`;
+        }
+        if (info.alt !== 0) {
+          const sym = info.alt > 0 ? "♯" : "♭";
+          html += `<text x="${x-18}" y="${y+5}" font-size="13" font-weight="700" fill="${col}">${sym}</text>`;
+        }
+        const hollow = baseDur >= 0.5;
+        html += `<ellipse cx="${x}" cy="${y}" rx="7.2" ry="5.1" transform="rotate(-18 ${x} ${y})" fill="${hollow ? "#fff" : col}" stroke="${col}" stroke-width="1.8"/>`;
+        if (isDotted) {
+          html += `<circle cx="${x+12}" cy="${y-2}" r="2.2" fill="${col}"/>`;
+        }
+        // Règle d'Elaine Gould : hampe vers le haut sous Si4, vers le bas à partir de Si4
+        if (baseDur < 1.0) {
+          const stemUp = info.dia < middleDia;
+          const sx = stemUp ? x + 6.4 : x - 6.4;
+          const sy2 = stemUp ? y - 30 : y + 30;
+          html += `<line x1="${sx}" y1="${y}" x2="${sx}" y2="${sy2}" stroke="${col}" stroke-width="1.8"/>`;
+          if (baseDur <= 0.125) {
+            const fy = stemUp ? sy2 + 9 : sy2 - 9;
+            html += `<path d="M ${sx} ${sy2} Q ${sx+9} ${(sy2+fy)/2} ${sx+6} ${fy}" fill="none" stroke="${col}" stroke-width="2"/>`;
+          }
+        }
+        html += `<text x="${x}" y="130" font-size="10.5" text-anchor="middle" fill="${col}">${info.label}</text>`;
       }
-      if (info.sharp) {
-        html += `<text x="${x-18}" y="${y+5}" font-size="14" font-weight="700" fill="currentColor">#</text>`;
+
+      x += gourlayWidth(ev.dur);
+      beatAcc += ev.dur;
+      if (beatAcc >= 0.999 && localIdx < visible.length - 1) {
+        beatAcc = beatAcc % 1.0;
+        const bx = x - gourlayWidth(ev.dur) * 0.38;
+        html += `<line x1="${bx}" y1="40" x2="${bx}" y2="96" stroke="currentColor" stroke-opacity="0.45" stroke-width="1.3"/>`;
       }
-      html += `<ellipse cx="${x}" cy="${y}" rx="7.5" ry="5.2" transform="rotate(-18 ${x} ${y})" fill="currentColor"/>`;
-      html += `<line x1="${x+6.5}" y1="${y}" x2="${x+6.5}" y2="${y-30}" stroke="currentColor" stroke-width="1.8"/>`;
-      html += `<text x="${x}" y="122" font-size="11" text-anchor="middle" fill="var(--muted)">${info.label}</text>`;
     });
+
     svg.innerHTML = html;
-    document.getElementById("fr-status").textContent = notes.length
-      ? `${notes.length} note(s) · Affichage écrit (${shift >= 0 ? "+" + shift : shift} demi-tons)`
-      : "Portée vide. Touchez le clavier pour écrire une mélodie.";
+    const statusEl = document.getElementById("fr-status");
+    if (!events.length) {
+      statusEl.textContent = "Portée vide. Touchez le clavier pour écrire une mélodie.";
+    } else if (outOfRangeCount > 0) {
+      statusEl.textContent = `${events.length} événements · ⚠ ${outOfRangeCount} note(s) hors tessiture recommandée (${TIMBRE_LABELS[timbre]}).`;
+    } else {
+      statusEl.textContent = `${events.length} événements · Timbre : ${TIMBRE_LABELS[timbre]} · Écrit (${shift >= 0 ? "+" + shift : shift} demi-tons).`;
+    }
   }
+
+  function effectiveDur() {
+    return dotted ? selectedDur * 1.5 : selectedDur;
+  }
+
+  document.getElementById("fr-durs").addEventListener("click", (e) => {
+    const btn = e.target.closest("button[data-dur]");
+    if (!btn) return;
+    selectedDur = parseFloat(btn.dataset.dur);
+    document.querySelectorAll("#fr-durs button[data-dur]").forEach(b => b.classList.toggle("primary", b === btn));
+  });
+  document.getElementById("fr-dot").addEventListener("click", (e) => {
+    dotted = !dotted;
+    e.currentTarget.classList.toggle("primary", dotted);
+  });
+  document.getElementById("fr-rest").addEventListener("click", () => {
+    events.push({ midi: null, dur: effectiveDur() });
+    if (events.length > 10) events = events.slice(-10);
+    render();
+  });
   document.getElementById("fr-piano").addEventListener("click", (e) => {
     const btn = e.target.closest("button[data-midi]");
     if (!btn) return;
     const midi = parseInt(btn.dataset.midi, 10);
-    tone(midi);
-    notes.push(midi);
-    if (notes.length > 10) notes = notes.slice(-10);
+    const dur = effectiveDur();
+    playNote(midi, dur);
+    events.push({ midi, dur });
+    if (events.length > 10) events = events.slice(-10);
     render();
   });
   document.getElementById("fr-inst").addEventListener("change", render);
-  document.getElementById("fr-undo").addEventListener("click", () => { notes.pop(); render(); });
-  document.getElementById("fr-clear").addEventListener("click", () => { notes = []; render(); });
-  document.getElementById("fr-play").addEventListener("click", () => {
-    notes.forEach((m, i) => setTimeout(() => tone(m, 0.25), i * 320));
-  });
+  document.getElementById("fr-undo").addEventListener("click", () => { events.pop(); render(); });
+  document.getElementById("fr-clear").addEventListener("click", () => { stopPlayback(); events = []; render(); });
+  document.getElementById("fr-play").addEventListener("click", playMelody);
   render();
 })();
 </script>
@@ -380,6 +758,7 @@ h2 { font-size: clamp(1.6rem, 4vw, 2.2rem); line-height: 1.12; letter-spacing: -
     <article class="card"><h3>Lunaison</h3><p>Suivi du cycle menstruel sans compte ni cloud, fiches médicales sourcées et bilan soignant.</p><p style="margin-top:10px"><a href="https://relthdrarxash.github.io/lunaison/">Découvrir Lunaison →</a></p></article>
     <article class="card"><h3>Respire</h3><p>Pause de respiration avant les applis à défilement infini et filtre Reels / Shorts.</p><p style="margin-top:10px"><a href="https://relthdrarxash.github.io/respire/fr/">Découvrir Respire →</a></p></article>
     <article class="card"><h3>Sauve</h3><p>Premiers secours anti-panique hors-ligne à la voix et par vibrations.</p><p style="margin-top:10px"><a href="https://relthdrarxash.github.io/sauve/">Découvrir Sauve →</a></p></article>
+    <article class="card"><h3>Sillon</h3><p>Calendrier de semis adapté aux gelées de votre département, associations et rotation au potager.</p><p style="margin-top:10px"><a href="https://relthdrarxash.github.io/sillon/">Découvrir Sillon →</a></p></article>
   </div>
 </section>
 </main>
