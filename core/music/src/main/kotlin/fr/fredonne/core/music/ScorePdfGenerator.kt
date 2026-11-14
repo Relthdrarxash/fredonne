@@ -90,7 +90,12 @@ object ScorePdfGenerator {
 
         val instLabel = instrumentDisplayName(instrument)
         val keyLabel = formatKeyFrench(written.key)
-        val metaLine = "Tonalité écrite : $keyLabel   ·   Mesure : ${written.time.beats}/${written.time.unit}   ·   Tempo : $tempoBpm BPM"
+        val pedalSuffix = if (instrument?.pedalHarp == true) {
+            "   ·   Pédales : " + HarpPedals.initialDiagram(written.key).replace("♮", "")
+        } else {
+            ""
+        }
+        val metaLine = "Tonalité écrite : $keyLabel   ·   Mesure : ${written.time.beats}/${written.time.unit}   ·   Tempo : $tempoBpm BPM$pedalSuffix"
         drawText(
             sb = content,
             x = textStartX,
@@ -718,6 +723,7 @@ object ScorePdfGenerator {
         "trombone" -> "Trombone (Ut, clé de Fa)"
         "violin" -> "Violon (Ut)"
         "harp_celtic" -> "Harpe celtique (Ut)"
+        "harp_pedal" -> "Harpe à pédales (Ut)"
         "guitar" -> "Guitare (Ut, 8va)"
         "bass_electric" -> "Basse (Ut, clé de Fa)"
         "contrabass" -> "Contrebasse (clé de Fa)"

@@ -24,7 +24,7 @@ enum class Clef(
          * automatiquement en clé de Fa lorsque le registre médian descend sous Sol3.
          */
         fun resolveFor(writtenMelody: Melody, instrument: Instrument?): Clef {
-            if (instrument != null && instrument.id != "harp_celtic") {
+            if (instrument != null && instrument.id != "harp_celtic" && instrument.id != "harp_pedal") {
                 return instrument.clef
             }
             val notes = writtenMelody.measures.flatMap { it.events }.filterIsInstance<Note>()
@@ -37,6 +37,41 @@ enum class Clef(
 }
 
 /**
+ * Disposition et suivi des 7 pédales d'une harpe de concert à double mouvement (système Érard) :
+ * Pied gauche : Ré, Do, Si  |  Pied droit : Mi, Fa, Sol, La.
+ * Chaque pédale possède 3 crans : bémol (-1), bécarre (0), dièse (+1), agissant sur toutes les octaves.
+ */
+object HarpPedals {
+    private val LEFT_FOOT = listOf(Step.D, Step.C, Step.B)
+    private val RIGHT_FOOT = listOf(Step.E, Step.F, Step.G, Step.A)
+
+    fun stepNameFrench(step: Step): String = when (step) {
+        Step.C -> "Do"
+        Step.D -> "Ré"
+        Step.E -> "Mi"
+        Step.F -> "Fa"
+        Step.G -> "Sol"
+        Step.A -> "La"
+        Step.B -> "Si"
+    }
+
+    fun alterSymbol(alter: Int): String = when {
+        alter > 0 -> "#"
+        alter < 0 -> "b"
+        else -> "♮"
+    }
+
+    fun pedalLabel(step: Step, alter: Int): String = "${stepNameFrench(step)}${alterSymbol(alter)}"
+
+    /** Diagramme d'armure initial des 7 pédales : « Ré Do Si | Mi Fa Sol La ». */
+    fun initialDiagram(key: Key): String {
+        val left = LEFT_FOOT.joinToString(" ") { s -> pedalLabel(s, key.diatonicAlter(s)) }
+        val right = RIGHT_FOOT.joinToString(" ") { s -> pedalLabel(s, key.diatonicAlter(s)) }
+        return "$left | $right"
+    }
+}
+
+/**
  * Instrument avec sa transposition, sa tessiture courante et sa clé de lecture.
  *
  * [transposition] mène de la hauteur écrite à la hauteur réelle : une clarinette en si bémol
@@ -44,6 +79,7 @@ enum class Clef(
  * sonne une octave plus bas que ce qui est écrit en clé de Fa.
  * [diatonicOnly] signale un instrument diatonique à leviers (ex. harpe celtique) où toute
  * altération hors armure nécessite un changement de levier.
+ * [pedalHarp] signale une harpe de concert à 7 pédales à double mouvement (47 cordes Do♭1–Sol♯7).
  */
 data class Instrument(
     val id: String,
@@ -52,6 +88,7 @@ data class Instrument(
     val writtenHigh: Pitch,
     val clef: Clef = Clef.TREBLE,
     val diatonicOnly: Boolean = false,
+    val pedalHarp: Boolean = false,
 ) {
     val soundingLow: Pitch get() = writtenLow.transpose(transposition)
     val soundingHigh: Pitch get() = writtenHigh.transpose(transposition)
@@ -78,6 +115,7 @@ object Instruments {
     val TROMBONE = Instrument("trombone", Interval.UNISON, Pitch(Step.E, 2), Pitch(Step.B, 4, -1), clef = Clef.BASS)
     val VIOLIN = Instrument("violin", Interval.UNISON, Pitch(Step.G, 3), Pitch(Step.E, 7))
     val HARP_CELTIC = Instrument("harp_celtic", Interval.UNISON, Pitch(Step.C, 2), Pitch(Step.A, 6), clef = Clef.TREBLE, diatonicOnly = true)
+    val HARP_PEDAL = Instrument("harp_pedal", Interval.UNISON, Pitch(Step.C, 1, -1), Pitch(Step.G, 7, 1), clef = Clef.TREBLE, pedalHarp = true)
     val GUITAR = Instrument("guitar", -Interval.OCTAVE, Pitch(Step.E, 3), Pitch(Step.B, 6))
     val BASS_ELECTRIC = Instrument("bass_electric", -Interval.OCTAVE, Pitch(Step.E, 2), Pitch(Step.G, 4), clef = Clef.BASS)
     val CONTRABASS = Instrument("contrabass", -Interval.OCTAVE, Pitch(Step.E, 2), Pitch(Step.D, 4), clef = Clef.BASS)
@@ -88,7 +126,7 @@ object Instruments {
 
     val ALL: List<Instrument> = listOf(
         FLUTE, OBOE, CLARINET_BB, SAX_SOPRANO, SAX_ALTO, SAX_TENOR, SAX_BARITONE,
-        TRUMPET_BB, HORN_F, TROMBONE, VIOLIN, HARP_CELTIC, GUITAR, BASS_ELECTRIC, CONTRABASS,
+        TRUMPET_BB, HORN_F, TROMBONE, VIOLIN, HARP_CELTIC, HARP_PEDAL, GUITAR, BASS_ELECTRIC, CONTRABASS,
         VOICE_SOPRANO, VOICE_ALTO, VOICE_TENOR, VOICE_BASS,
     )
 

@@ -89,8 +89,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import fr.fredonne.core.music.Clef
 import fr.fredonne.core.music.Direction
+import fr.fredonne.core.music.DoubleAlterationOnHarp
 import fr.fredonne.core.music.Durations
 import fr.fredonne.core.music.Fraction
+import fr.fredonne.core.music.HarpPedals
 import fr.fredonne.core.music.HighRoughnessInterval
 import fr.fredonne.core.music.Instrument
 import fr.fredonne.core.music.Instruments
@@ -105,6 +107,7 @@ import fr.fredonne.core.music.Note
 import fr.fredonne.core.music.OutOfRange
 import fr.fredonne.core.music.ParallelFifths
 import fr.fredonne.core.music.ParallelOctaves
+import fr.fredonne.core.music.PedalChangeRequired
 import fr.fredonne.core.music.Pitch
 import fr.fredonne.core.music.QrCodeEncoder
 import fr.fredonne.core.music.Rest
@@ -727,8 +730,12 @@ private fun StaffCanvas(
                         measure.events.forEachIndexed { eIdx, event ->
                             val cx = layout.eventXs[eIdx]
                             val isPlayingNow = playingPosition == (layout.index to eIdx)
-                            val isOutOfRange = measureIssues.any { it is OutOfRange && it.eventIndex == eIdx }
+                            val isOutOfRange = measureIssues.any {
+                                (it is OutOfRange && it.eventIndex == eIdx) ||
+                                    (it is DoubleAlterationOnHarp && it.eventIndex == eIdx)
+                            }
                             val isLeverChange = measureIssues.any { it is LeverChangeRequired && it.eventIndex == eIdx }
+                            val pedalIssue = measureIssues.filterIsInstance<PedalChangeRequired>().firstOrNull { it.eventIndex == eIdx }
 
                             when (event) {
                                 is Note -> {
@@ -736,7 +743,7 @@ private fun StaffCanvas(
                                     val noteColor = when {
                                         isPlayingNow -> CursorTeal
                                         isOutOfRange -> WarnRed
-                                        isLeverChange -> WarnAmber
+                                        isLeverChange || pedalIssue != null -> WarnAmber
                                         else -> InkColor
                                     }
                                     val d = event.pitch.diatonic
@@ -812,6 +819,15 @@ private fun StaffCanvas(
                                     if (event.written.numerator == 3L && event.written.denominator >= 4L) {
                                         drawCircle(noteColor, radius = 3.0f, center = Offset(cx + rx + 5.5f, cy - 2f))
                                     }
+
+                                    if (pedalIssue != null) {
+                                        drawText(
+                                            textMeasurer = textMeasurer,
+                                            text = pedalIssue.pedalLabel,
+                                            topLeft = Offset(cx - 12f, bottomLineY + lineSpacing * 0.55f),
+                                            style = TextStyle(color = WarnAmber, fontSize = 10.sp, fontWeight = FontWeight.Bold),
+                                        )
+                                    }
                                 }
                                 is Rest -> {
                                     val restColor = if (isPlayingNow) CursorTeal else MutedInk
@@ -872,7 +888,9 @@ private fun VerifierBar(issues: List<Issue>, tempoBpm: Int) {
         is MeasureTooShort -> "Mesure ${first.measure + 1} : incomplète (manque ${first.missing.numerator}/${first.missing.denominator})"
         is MeasureTooLong -> "Mesure ${first.measure + 1} : dépassement de ${first.excess.numerator}/${first.excess.denominator}"
         is OutOfRange -> "Mesure ${first.measure + 1} : note ${if (first.tooLow) "trop grave" else "trop aiguë"} pour l'instrument"
+        is DoubleAlterationOnHarp -> "Mesure ${first.measure + 1} : double altération impossible à la harpe"
         is LeverChangeRequired -> "Mesure ${first.measure + 1} : altération hors armure (changement de levier requis)"
+        is PedalChangeRequired -> "Mesure ${first.measure + 1} : pédale ${first.pedalLabel} (toutes les octaves)"
         is ParallelFifths -> "Mesure ${first.measure + 1} : quintes parallèles détectées"
         is ParallelOctaves -> "Mesure ${first.measure + 1} : octaves parallèles détectées"
         is VoiceCrossing -> "Mesure ${first.measure + 1} : croisement de voix"
@@ -1576,6 +1594,7 @@ private fun instrumentLabel(instrument: Instrument): String = when (instrument.i
     "trombone" -> "Trombone (Ut, Clé de Fa)"
     "violin" -> "Violon (Ut)"
     "harp_celtic" -> "Harpe celtique (Ut, diatonique)"
+    "harp_pedal" -> "Harpe à pédales (Concert, 47 cordes)"
     "guitar" -> "Guitare (Ut, 8va)"
     "bass_electric" -> "Basse électrique (Clé de Fa, 8vb)"
     "contrabass" -> "Contrebasse (Clé de Fa, 8vb)"

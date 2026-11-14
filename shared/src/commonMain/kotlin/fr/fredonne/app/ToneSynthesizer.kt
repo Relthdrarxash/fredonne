@@ -40,7 +40,7 @@ object ToneSynthesizer {
         "flute" -> InstrumentTimbre.FLUTE
         "oboe", "clarinet_bb", "sax_soprano", "sax_alto", "sax_tenor", "sax_baritone" -> InstrumentTimbre.REED
         "trumpet_bb", "horn_f", "trombone" -> InstrumentTimbre.BRASS
-        "violin", "guitar", "harp_celtic" -> InstrumentTimbre.STRING
+        "violin", "guitar", "harp_celtic", "harp_pedal" -> InstrumentTimbre.STRING
         "bass_electric", "contrabass" -> InstrumentTimbre.BASS
         else -> InstrumentTimbre.WARM_KEYS
     }

@@ -198,6 +198,25 @@ class MelodyAndVerifierTest {
     }
 
     @Test
+    fun `harpe à pédales suit l'état des 7 pédales sur toutes les octaves`() {
+        // En Do majeur, un Fa#4 déplace la pédale Fa sur Fa# ; le Fa#5 suivant n'a pas besoin
+        // d'un nouveau changement, mais le retour à Fa♮4 exige de remettre la pédale sur Fa♮.
+        val m = Melody(
+            cMajor, fourFour,
+            listOf(Measure(listOf(note(Step.F, 4, 1), note(Step.F, 5, 1), note(Step.F, 4, 0), note(Step.C, 4)))),
+        )
+        val issues = Verifier.check(m, Instruments.HARP_PEDAL)
+        assertEquals(
+            listOf(
+                PedalChangeRequired(0, 0, Pitch(Step.F, 4, 1), "Fa#"),
+                PedalChangeRequired(0, 2, Pitch(Step.F, 4, 0), "Fa♮"),
+            ),
+            issues,
+        )
+        assertEquals("Ré♮ Do♮ Si♮ | Mi♮ Fa# Sol♮ La♮", HarpPedals.initialDiagram(Key(Step.G, 0, Mode.MAJOR)))
+    }
+
+    @Test
     fun `basse électrique et voix graves utilisent la clé de Fa ou Sol 8vb`() {
         val bassLine = Melody(
             cMajor, fourFour,

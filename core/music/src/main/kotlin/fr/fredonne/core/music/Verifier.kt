@@ -32,6 +32,28 @@ data class LeverChangeRequired(
     val pitch: Pitch,
 ) : Issue
 
+/**
+ * Sur une harpe à pédales (double mouvement, 7 pédales couplées sur toutes les octaves),
+ * signale qu'une pédale doit être déplacée sur un nouveau cran (`♭`, `♮` ou `♯`) pour cette note
+ * et qu'elle restera dans cet état sur toutes les octaves jusqu'au prochain changement.
+ */
+data class PedalChangeRequired(
+    override val measure: Int,
+    val eventIndex: Int,
+    val pitch: Pitch,
+    val pedalLabel: String,
+) : Issue
+
+/**
+ * Une note comporte un double-dièse ou double-bémol (`|alter| > 1`), impossible sur une harpe
+ * à leviers ou à pédales sans ré-orthographe enharmonique.
+ */
+data class DoubleAlterationOnHarp(
+    override val measure: Int,
+    val eventIndex: Int,
+    val pitch: Pitch,
+) : Issue
+
 /** Quintes parallèles consécutives par mouvement semblable entre deux voix (contrepoint de Fux / Tymoczko). */
 data class ParallelFifths(
     override val measure: Int,
@@ -78,6 +100,11 @@ object Verifier {
     fun check(melody: Melody, instrument: Instrument? = null, pickup: Boolean = false): List<Issue> {
         val full = melody.time.measureLength
         val issues = mutableListOf<Issue>()
+        val pedalState = if (instrument?.pedalHarp == true) {
+            Step.entries.associateWith { melody.key.diatonicAlter(it) }.toMutableMap()
+        } else {
+            null
+        }
 
         melody.measures.forEachIndexed { index, measure ->
             val total = measure.events.fold(Fraction.ZERO) { acc, event -> acc + event.length }
@@ -97,8 +124,21 @@ object Verifier {
                             midi > instrument.soundingHigh.midi ->
                                 issues += OutOfRange(index, eventIndex, event.pitch, tooLow = false)
                         }
-                        if (instrument.diatonicOnly && event.pitch.alter != melody.key.diatonicAlter(event.pitch.step)) {
+                        if ((instrument.diatonicOnly || instrument.pedalHarp) && abs(event.pitch.alter) > 1) {
+                            issues += DoubleAlterationOnHarp(index, eventIndex, event.pitch)
+                        } else if (instrument.diatonicOnly && event.pitch.alter != melody.key.diatonicAlter(event.pitch.step)) {
                             issues += LeverChangeRequired(index, eventIndex, event.pitch)
+                        } else if (pedalState != null) {
+                            val currentNotch = pedalState.getValue(event.pitch.step)
+                            if (event.pitch.alter != currentNotch) {
+                                pedalState[event.pitch.step] = event.pitch.alter
+                                issues += PedalChangeRequired(
+                                    measure = index,
+                                    eventIndex = eventIndex,
+                                    pitch = event.pitch,
+                                    pedalLabel = HarpPedals.pedalLabel(event.pitch.step, event.pitch.alter),
+                                )
+                            }
                         }
                     }
                 }

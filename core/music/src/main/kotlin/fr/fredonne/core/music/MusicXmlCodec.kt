@@ -319,6 +319,7 @@ object MusicXmlCodec {
         "trombone" -> "Trombone"
         "violin" -> "Violon"
         "harp_celtic" -> "Harpe celtique"
+        "harp_pedal" -> "Harpe à pédales (Concert)"
         "guitar" -> "Guitare"
         "bass_electric" -> "Basse électrique"
         "contrabass" -> "Contrebasse"
