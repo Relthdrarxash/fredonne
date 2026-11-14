@@ -119,6 +119,7 @@ h2 { font-size: clamp(1.6rem, 4vw, 2.2rem); line-height: 1.12; letter-spacing: -
   </a>
   <nav class="nav" aria-label="Navigation">
     <a href="#fonctions">Fonctions</a>
+    <a href="#recherche">Fondements</a>
     <a href="#confidentialite">Vie privée</a>
     <a href="#atelier">Pilmil Studio</a>
     <a href="confidentialite.html">Confidentialité</a>
@@ -259,9 +260,11 @@ h2 { font-size: clamp(1.6rem, 4vw, 2.2rem); line-height: 1.12; letter-spacing: -
     master.gain.exponentialRampToValueAtTime(0.0001, now + dur);
 
     const partials = [
-      { mult: 1, type: "sine", gain: 1.0, decay: dur },
-      { mult: 2, type: "sine", gain: 0.30, decay: dur * 0.55 },
-      { mult: 3, type: "triangle", gain: 0.10, decay: dur * 0.35 }
+      { mult: 1.0, type: "sine", gain: 0.68, decay: dur },
+      { mult: 1.0012, type: "sine", gain: 0.32, decay: dur },
+      { mult: 2.0 * Math.sqrt(1 + 0.00018 * 4), type: "sine", gain: 0.36, decay: dur * 0.62 },
+      { mult: 3.0 * Math.sqrt(1 + 0.00018 * 9), type: "sine", gain: 0.16, decay: dur * 0.42 },
+      { mult: 4.0 * Math.sqrt(1 + 0.00018 * 16), type: "triangle", gain: 0.07, decay: dur * 0.28 }
     ];
     filter.connect(master).connect(ctx.destination);
     partials.forEach((p) => {
@@ -330,6 +333,33 @@ h2 { font-size: clamp(1.6rem, 4vw, 2.2rem); line-height: 1.12; letter-spacing: -
   render();
 })();
 </script>
+
+<section class="wrap" id="recherche">
+  <h2>Fondements acoustiques et musicologiques</h2>
+  <p class="sub">Pour offrir un rendu sonore naturel, une gravure lisible et une vérification théorique rigoureuse sans aucune bibliothèque propriétaire ni banque d'échantillons lourde, le moteur de Fredonne s'appuie sur la littérature scientifique en acoustique musicale et en musicologie computationnelle.</p>
+  <div class="cards" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));">
+    <article class="card">
+      <h3>1. Synthèse spectrale, inharmonicité &amp; réverbération</h3>
+      <p>Plutôt qu'un oscillateur sinusoïdal sec, chaque note est synthétisée à 44,1 kHz selon la famille acoustique de l'instrument choisi (claviers feutrés à double corde désaccordée de +0,12 %, flûte à colonne d'air ouverte, tuyau à anche à harmoniques impairs 1, 3, 5, cuivres à ouverture spectrale dynamique, cordes). La raideur des cordes suit la loi de dispersion partielle <i>f<sub>n</sub></i> = <i>n&thinsp;f</i><sub>0</sub>&thinsp;&radic;(1 + <i>B&thinsp;n</i><sup>2</sup>), pondérée par les courbes d'isosonie <strong>ISO 226:2023</strong> et diffusée par un réverbérateur de <strong>Schroeder–Moorer</strong> (4 filtres en peigne passe-bas parallèles et 2 diffuseurs passe-tout en série).</p>
+      <p style="margin-top:10px;font-size:0.84rem;color:var(--muted)"><em>Réf. :</em> M. R. Schroeder (1962), « Natural Sounding Artificial Reverberation », <em>JAES</em> ; J. A. Moorer (1979), « About This Reverberation Business », <em>Computer Music Journal</em> ; H. Fletcher (1964), « Normal Vibration Frequencies of a Stiff Piano String », <em>JASA</em> ; J. O. Smith (2010), <em>Physical Audio Signal Processing</em> (CCRMA, Stanford).</p>
+    </article>
+    <article class="card">
+      <h3>2. Orthographe enharmonique &amp; cognition tonale</h3>
+      <p>Un clavier MIDI ignore la différence orthographique entre un <code>Fa&#9839;</code> et un <code>Sol&#9837;</code>. Fredonne résout automatiquement l'enharmonie selon l'armure active et la direction mélodique locale en s'inspirant de l'algorithme <strong>PS13</strong> de David Meredith, simplifie automatiquement les tonalités théoriques dépassant 6 altérations après transposition instrumentale, et estime la tonalité par corrélation de Pearson sur les profils cognitifs de <strong>Krumhansl &amp; Schmuckler</strong>.</p>
+      <p style="margin-top:10px;font-size:0.84rem;color:var(--muted)"><em>Réf. :</em> D. Meredith (2006), « The PS13 Pitch Spelling Algorithm », <em>Journal of New Music Research</em>, 35(2) ; C. L. Krumhansl (1990), <em>Cognitive Foundations of Musical Pitch</em>, Oxford University Press ; D. Temperley (2001), <em>The Cognition of Basic Musical Structures</em>, MIT Press.</p>
+    </article>
+    <article class="card">
+      <h3>3. Gravure &amp; espacement logarithmique des durées</h3>
+      <p>En gravure typographique, une ronde n'occupe pas quatre fois la largeur horizontale d'une noire, et quatre doubles-croches ne s'écrasent pas dans l'espace d'un seul temps. La portée interactive applique le modèle d'espacement optique non linéaire de <strong>John S. Gourlay</strong> (<i>w</i>(<i>d</i>) = <i>w</i><sub>noire</sub> &middot; [1 + <i>k</i>&thinsp;log<sub>2</sub>(<i>d</i> / <i>d</i><sub>noire</sub>)]) ainsi que les règles de direction de hampes d'<strong>Elaine Gould</strong>.</p>
+      <p style="margin-top:10px;font-size:0.84rem;color:var(--muted)"><em>Réf. :</em> J. S. Gourlay (1987), « Spacing a Line of Music », Tech. Report OSU-CISRC-10/87-TR35, Ohio State University ; D. Byrd (1984), <em>Music Notation by Computer</em>, Indiana University ; E. Gould (2011), <em>Behind Bars: The Definitive Guide to Music Notation</em>, Faber Music.</p>
+    </article>
+    <article class="card">
+      <h3>4. Contrepoint &amp; rugosité psychoacoustique</h3>
+      <p>Outre le contrôle des durées de mesure et de la tessiture réelle de chaque instrument, le moteur théorique intègre un vérificateur polyphonique détectant les quintes et octaves parallèles par mouvement semblable, les croisements de voix (formalisés géométriquement par <strong>Dmitri Tymoczko</strong> à la suite du <em>Gradus ad Parnassum</em> de <strong>Fux</strong>) et la rugosité sensorielle en bande critique de <strong>Plomp, Levelt &amp; Sethares</strong>.</p>
+      <p style="margin-top:10px;font-size:0.84rem;color:var(--muted)"><em>Réf. :</em> R. Plomp &amp; W. J. M. Levelt (1965), « Tonal Consonance and Critical Bandwidth », <em>JASA</em>, 38(4) ; W. A. Sethares (1993), « Local Consonance and the Relationship Between Timbre and Scale », <em>JASA</em>, 94(3) ; D. Tymoczko (2011), <em>A Geometry of Music</em>, Oxford University Press.</p>
+    </article>
+  </div>
+</section>
 
 <section class="wrap" id="confidentialite">
   <h2>Rien ne sort du téléphone</h2>

@@ -19,9 +19,13 @@ actual class TonePlayer {
         playing.set(false)
     }
 
-    actual fun playSingleNote(midi: Int, durationMs: Int) {
+    actual fun playSingleNote(midi: Int, durationMs: Int, timbre: InstrumentTimbre) {
         thread(isDaemon = true) {
-            val samples = ToneSynthesizer.synthesizeTone(ToneSynthesizer.midiToFreq(midi), durationMs)
+            val samples = ToneSynthesizer.synthesizeTone(
+                freqHz = ToneSynthesizer.midiToFreq(midi),
+                durationMs = durationMs,
+                timbre = timbre,
+            )
             playPcm(samples)
         }
     }
@@ -31,6 +35,7 @@ actual class TonePlayer {
         bpm: Int,
         onEventPlaying: (measureIndex: Int, eventIndex: Int) -> Unit,
         onFinished: () -> Unit,
+        timbre: InstrumentTimbre,
     ) {
         stop()
         playing.set(true)
@@ -74,7 +79,12 @@ actual class TonePlayer {
                         val eventMs = (event.length.toDouble() * wholeMs).toInt().coerceAtLeast(60)
                         val eventCount = (sampleRate * eventMs) / 1000
                         val generated = when (event) {
-                            is Note -> ToneSynthesizer.synthesizeNoteFloat(ToneSynthesizer.midiToFreq(event.pitch.midi), eventMs, tailMs = releaseTailMs)
+                            is Note -> ToneSynthesizer.synthesizeNoteFloat(
+                                freqHz = ToneSynthesizer.midiToFreq(event.pitch.midi),
+                                durationMs = eventMs,
+                                tailMs = releaseTailMs,
+                                timbre = timbre,
+                            )
                             else -> FloatArray(eventCount)
                         }
                         val combined = FloatArray(maxOf(generated.size, overlapTail.size))

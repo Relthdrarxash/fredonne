@@ -84,6 +84,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import fr.fredonne.core.music.Durations
 import fr.fredonne.core.music.Fraction
+import fr.fredonne.core.music.HighRoughnessInterval
 import fr.fredonne.core.music.Instrument
 import fr.fredonne.core.music.Instruments
 import fr.fredonne.core.music.Issue
@@ -91,11 +92,15 @@ import fr.fredonne.core.music.Key
 import fr.fredonne.core.music.MeasureTooLong
 import fr.fredonne.core.music.MeasureTooShort
 import fr.fredonne.core.music.Mode
+import fr.fredonne.core.music.MusicTheory
 import fr.fredonne.core.music.Note
 import fr.fredonne.core.music.OutOfRange
+import fr.fredonne.core.music.ParallelFifths
+import fr.fredonne.core.music.ParallelOctaves
 import fr.fredonne.core.music.Pitch
 import fr.fredonne.core.music.Rest
 import fr.fredonne.core.music.Step
+import fr.fredonne.core.music.VoiceCrossing
 import kotlin.math.roundToInt
 
 private val PaperBg = Color(0xFFFAF8F4)
@@ -210,6 +215,7 @@ fun FredonneApp(
                                         isPlaying = false
                                         playingPosition = null
                                     },
+                                    timbre = ToneSynthesizer.timbreForInstrument(state.instrument),
                                 )
                             }
                         }
@@ -376,7 +382,10 @@ fun FredonneApp(
                 baseOctave = baseOctave,
                 onShiftOctave = { delta -> baseOctave = (baseOctave + delta).coerceIn(3, 5) },
                 onKeyPressed = { pitch ->
-                    player.playSingleNote(pitch.midi)
+                    player.playSingleNote(
+                        midi = pitch.midi,
+                        timbre = ToneSynthesizer.timbreForInstrument(state.instrument),
+                    )
                     state = state.insertNote(pitch)
                 },
             )
@@ -430,10 +439,14 @@ private fun StaffCanvas(
         var x = clefAreaPx
         melody.measures.mapIndexed { mIdx, measure ->
             val startX = x
-            val contentWidth = maxOf(minMeasureWidthPx, measure.events.size * eventStepPx + measurePadPx * 2)
-            val eventXs = measure.events.indices.map { eIdx ->
-                startX + measurePadPx + eIdx * eventStepPx + eventStepPx * 0.45f
+            var cursorOffset = startX + measurePadPx
+            val eventXs = measure.events.map { event ->
+                val stepWidth = eventStepPx * MusicTheory.gourlaySpacingFactor(event.length)
+                val cx = cursorOffset + stepWidth * 0.45f
+                cursorOffset += stepWidth
+                cx
             }
+            val contentWidth = maxOf(minMeasureWidthPx, (cursorOffset - startX) + measurePadPx)
             val endX = startX + contentWidth
             x = endX
             MeasureLayout(mIdx, startX, endX, eventXs)
@@ -705,10 +718,14 @@ private fun VerifierBar(issues: List<Issue>, tempoBpm: Int) {
         is MeasureTooShort -> "Mesure ${first.measure + 1} : incomplète (manque ${first.missing.numerator}/${first.missing.denominator})"
         is MeasureTooLong -> "Mesure ${first.measure + 1} : dépassement de ${first.excess.numerator}/${first.excess.denominator}"
         is OutOfRange -> "Mesure ${first.measure + 1} : note ${if (first.tooLow) "trop grave" else "trop aiguë"} pour l'instrument"
+        is ParallelFifths -> "Mesure ${first.measure + 1} : quintes parallèles détectées"
+        is ParallelOctaves -> "Mesure ${first.measure + 1} : octaves parallèles détectées"
+        is VoiceCrossing -> "Mesure ${first.measure + 1} : croisement de voix"
+        is HighRoughnessInterval -> "Mesure ${first.measure + 1} : intervalle à forte rugosité acoustique"
     }
     val textColor = when (issues.firstOrNull()) {
         null -> AccentSage
-        is OutOfRange -> WarnRed
+        is OutOfRange, is ParallelFifths, is ParallelOctaves -> WarnRed
         else -> WarnAmber
     }
     Row(
@@ -934,6 +951,17 @@ private fun KeyAndTransposeDialog(
                     ) {
                         Text(label, color = if (isCurrent) AccentSage else InkColor)
                     }
+                }
+                OutlinedButton(
+                    onClick = { onUpdateState(state.applyDetectedKey()) },
+                    modifier = Modifier.fillMaxWidth(),
+                    border = BorderStroke(1.dp, AccentSage.copy(alpha = 0.6f)),
+                ) {
+                    Text(
+                        "Tonalité estimée : ${formatKeyLabel(state.detectedKey)} (adapter l'armure)",
+                        color = AccentSage,
+                        fontSize = 12.sp,
+                    )
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedButton(

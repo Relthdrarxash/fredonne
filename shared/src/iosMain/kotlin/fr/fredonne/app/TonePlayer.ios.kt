@@ -30,9 +30,13 @@ actual class TonePlayer {
         melodyPlayer = null
     }
 
-    actual fun playSingleNote(midi: Int, durationMs: Int) {
+    actual fun playSingleNote(midi: Int, durationMs: Int, timbre: InstrumentTimbre) {
         ensureAudioSession()
-        val samples = ToneSynthesizer.synthesizeTone(ToneSynthesizer.midiToFreq(midi), durationMs)
+        val samples = ToneSynthesizer.synthesizeTone(
+            freqHz = ToneSynthesizer.midiToFreq(midi),
+            durationMs = durationMs,
+            timbre = timbre,
+        )
         if (samples.isEmpty()) return
         val wav = ToneSynthesizer.pcm16ToWav(samples)
         val data = wav.toNSData() ?: return
@@ -47,10 +51,11 @@ actual class TonePlayer {
         bpm: Int,
         onEventPlaying: (measureIndex: Int, eventIndex: Int) -> Unit,
         onFinished: () -> Unit,
+        timbre: InstrumentTimbre,
     ) {
         stop()
         ensureAudioSession()
-        val (pcm, timings) = ToneSynthesizer.synthesizeMelody(melody, bpm)
+        val (pcm, timings) = ToneSynthesizer.synthesizeMelody(melody, bpm, timbre)
         if (pcm.isEmpty() || timings.isEmpty()) {
             onFinished()
             return

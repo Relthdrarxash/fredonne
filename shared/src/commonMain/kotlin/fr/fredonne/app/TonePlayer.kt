@@ -9,11 +9,16 @@ import fr.fredonne.core.music.Melody
 expect class TonePlayer() {
     fun isPlaying(): Boolean
     fun stop()
-    fun playSingleNote(midi: Int, durationMs: Int = 520)
+    fun playSingleNote(
+        midi: Int,
+        durationMs: Int = 520,
+        timbre: InstrumentTimbre = InstrumentTimbre.WARM_KEYS,
+    )
     fun playMelody(
         melody: Melody,
         bpm: Int,
         onEventPlaying: (measureIndex: Int, eventIndex: Int) -> Unit,
         onFinished: () -> Unit,
+        timbre: InstrumentTimbre = InstrumentTimbre.WARM_KEYS,
     )
 }

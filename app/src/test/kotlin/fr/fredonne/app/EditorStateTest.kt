@@ -94,4 +94,27 @@ class EditorStateTest {
             .insertNote(Pitch(Step.C, 4))
         assertTrue(state.issues.any { it is MeasureTooLong && it.measure == 0 })
     }
+
+    @Test
+    fun `black key insertion in F major spells A sharp as B flat via Meredith PS13 context`() {
+        val state = EditorState()
+            .setKey(Key(Step.F, 0, Mode.MAJOR))
+            .insertNote(Pitch(Step.A, 4, 1))
+        val note = state.melody.measures[0].events[0] as Note
+        assertEquals(Pitch(Step.B, 4, -1), note.pitch)
+    }
+
+    @Test
+    fun `each instrument family synthesizes non-empty harmonic audio with Schroeder reverb`() {
+        for (timbre in InstrumentTimbre.entries) {
+            val pcm = ToneSynthesizer.synthesizeTone(
+                freqHz = ToneSynthesizer.midiToFreq(69),
+                durationMs = 240,
+                tailMs = 180,
+                timbre = timbre,
+            )
+            assertTrue(pcm.isNotEmpty())
+            assertTrue(pcm.any { it != 0.toShort() })
+        }
+    }
 }

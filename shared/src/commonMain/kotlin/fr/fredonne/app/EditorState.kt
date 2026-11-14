@@ -11,12 +11,14 @@ import fr.fredonne.core.music.Key
 import fr.fredonne.core.music.Measure
 import fr.fredonne.core.music.Melody
 import fr.fredonne.core.music.Mode
+import fr.fredonne.core.music.MusicTheory
 import fr.fredonne.core.music.Note
 import fr.fredonne.core.music.Pitch
 import fr.fredonne.core.music.Rest
 import fr.fredonne.core.music.Step
 import fr.fredonne.core.music.TimeSignature
 import fr.fredonne.core.music.Verifier
+import fr.fredonne.core.music.respellPractical
 import fr.fredonne.core.music.transposed
 
 data class EditorSnapshot(
@@ -42,13 +44,17 @@ data class EditorState(
     val issues: List<Issue>
         get() = Verifier.check(melody, instrument = instrument)
 
-    /** Mélodie écrite pour l'instrument sélectionné (transposée si instrument transpositeur). */
+    /** Mélodie écrite pour l'instrument sélectionné (transposée et ré-orthographiée si l'armure dépasse 6 altérations). */
     val displayedMelody: Melody
         get() = if (instrument == null || instrument.transposition == Interval.UNISON) {
-            melody
+            melody.respellPractical()
         } else {
-            melody.transposed(-instrument.transposition)
+            melody.transposed(-instrument.transposition).respellPractical()
         }
+
+    /** Tonalité détectée automatiquement par le modèle cognitif de Krumhansl-Schmuckler (1990). */
+    val detectedKey: Key
+        get() = MusicTheory.detectKey(melody)
 
     val canUndo: Boolean get() = undoStack.isNotEmpty()
     val canRedo: Boolean get() = redoStack.isNotEmpty()
@@ -61,7 +67,31 @@ data class EditorState(
         )
     }
 
-    fun insertNote(soundingPitch: Pitch): EditorState = insertEvent(Note(soundingPitch, effectiveDuration))
+    private fun previousNoteMidi(): Int? {
+        if (melody.measures.isEmpty()) return null
+        val mIdx = cursorMeasure.coerceIn(0, melody.measures.lastIndex)
+        val events = melody.measures[mIdx].events
+        val limit = cursorEventIndex.coerceIn(0, events.size)
+        for (i in (limit - 1) downTo 0) {
+            val e = events[i]
+            if (e is Note) return e.pitch.midi
+        }
+        for (m in (mIdx - 1) downTo 0) {
+            for (e in melody.measures[m].events.asReversed()) {
+                if (e is Note) return e.pitch.midi
+            }
+        }
+        return null
+    }
+
+    fun insertNote(soundingPitch: Pitch): EditorState {
+        val spelled = if (soundingPitch.alter != 0) {
+            MusicTheory.spellPitch(soundingPitch.midi, melody.key, prevMidi = previousNoteMidi())
+        } else {
+            soundingPitch
+        }
+        return insertEvent(Note(spelled, effectiveDuration))
+    }
 
     fun insertRest(): EditorState = insertEvent(Rest(effectiveDuration))
 
@@ -201,14 +231,38 @@ data class EditorState(
 
     fun setKey(key: Key): EditorState {
         val base = pushUndo()
-        return base.copy(melody = base.melody.copy(key = key))
+        return base.copy(melody = base.melody.copy(key = key).respellPractical())
+    }
+
+    /** Applique la tonalité estimée par le profil de Krumhansl-Schmuckler sans transposer les hauteurs MIDI. */
+    fun applyDetectedKey(): EditorState {
+        val inferred = MusicTheory.detectKey(melody)
+        if (inferred == melody.key) return this
+        val base = pushUndo()
+        val notes = base.melody.measures.flatMap { it.events }.filterIsInstance<Note>()
+        var idx = 0
+        val respelledMeasures = base.melody.measures.map { m ->
+            Measure(
+                m.events.map { e ->
+                    if (e is Note) {
+                        val prev = if (idx > 0) notes[idx - 1].pitch.midi else null
+                        val next = if (idx + 1 < notes.size) notes[idx + 1].pitch.midi else null
+                        idx++
+                        e.copy(pitch = MusicTheory.spellPitch(e.pitch.midi, inferred, prev, next))
+                    } else {
+                        e
+                    }
+                }
+            )
+        }
+        return base.copy(melody = base.melody.copy(key = inferred, measures = respelledMeasures))
     }
 
     fun transposeToKey(targetStep: Step, targetAlter: Int, direction: Direction = Direction.NEAREST): EditorState {
         val interval = Key.intervalBetweenTonics(melody.key, targetStep, targetAlter, direction)
         if (interval == Interval.UNISON) return this
         val base = pushUndo()
-        return base.copy(melody = base.melody.transposed(interval))
+        return base.copy(melody = base.melody.transposed(interval).respellPractical())
     }
 
     fun transposeOctave(up: Boolean): EditorState {
