@@ -1,0 +1,115 @@
+name: Publication
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Numéro de version à publier, par exemple 1.0.0"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Versions GitHub et Google Play
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      PACKAGE_NAME: fr.fredonne.app
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.11.1"
+
+      - name: Numéro de version depuis l'étiquette
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+            tag="v${INPUT_VERSION#v}"
+          else
+            tag="$GITHUB_REF_NAME"
+          fi
+          echo "RELEASE_TAG=$tag" >> "$GITHUB_ENV"
+          bash scripts/version-from-tag.sh "$tag" | tee -a "$GITHUB_ENV"
+
+      - name: Tests unitaires
+        run: gradle :core:music:test :app:testReleaseUnitTest --no-daemon
+
+      - name: Restaurer la clé d'envoi (si configurée)
+        id: sign
+        env:
+          KEYSTORE_B64: ${{ secrets.RELEASE_KEYSTORE_B64 }}
+        run: |
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/upload.jks"
+            echo "RELEASE_KEYSTORE=$RUNNER_TEMP/upload.jks" >> "$GITHUB_ENV"
+            echo "signed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "signed=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Secret RELEASE_KEYSTORE_B64 absent : archive release non signée générée pour GitHub."
+          fi
+
+      - name: Compiler l'APK et l'AAB
+        env:
+          RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+          FREDONNE_VERSION_CODE: ${{ env.VERSION_CODE }}
+          FREDONNE_VERSION_NAME: ${{ env.VERSION_NAME }}
+        run: |
+          gradle assembleRelease bundleRelease --no-daemon
+          apk=$(find app/build/outputs/apk/release -name "*.apk" | head -n 1)
+          aab=$(find app/build/outputs/bundle/release -name "*.aab" | head -n 1)
+          cp "$apk" "Fredonne-$VERSION_NAME.apk"
+          cp "$aab" "Fredonne-$VERSION_NAME.aab"
+          sha256sum "Fredonne-$VERSION_NAME.apk" > "Fredonne-$VERSION_NAME.apk.sha256"
+          cp "Fredonne-$VERSION_NAME.apk" Fredonne.apk
+
+      - name: Créer la version GitHub
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$RELEASE_TAG" --target "$GITHUB_SHA" \
+            "Fredonne-$VERSION_NAME.apk" "Fredonne-$VERSION_NAME.apk.sha256" "Fredonne-$VERSION_NAME.aab" Fredonne.apk \
+            --title "Fredonne $VERSION_NAME" --generate-notes
+
+      - name: Vérifier la configuration Google Play
+        id: play
+        env:
+          PLAY_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+        run: |
+          if [ -n "$PLAY_JSON" ] && [ "${{ steps.sign.outputs.signed }}" = "true" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::PLAY_SERVICE_ACCOUNT_JSON ou RELEASE_KEYSTORE_B64 absent : envoi à Google Play ignoré."
+          fi
+
+      - name: Envoyer sur Google Play (test interne)
+        if: steps.play.outputs.enabled == 'true'
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: ${{ env.PACKAGE_NAME }}
+          releaseFiles: Fredonne-${{ env.VERSION_NAME }}.aab
+          releaseName: ${{ env.VERSION_NAME }}
+          track: internal
+          status: ${{ vars.PLAY_RELEASE_STATUS || 'completed' }}

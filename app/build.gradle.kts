@@ -12,15 +12,29 @@ android {
         applicationId = "fr.fredonne.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = System.getenv("FREDONNE_VERSION_CODE")?.toIntOrNull() ?: 1
+        versionName = System.getenv("FREDONNE_VERSION_NAME") ?: "0.1.0"
         manifestPlaceholders["allowAutoBackup"] =
             providers.gradleProperty("pilmil.allowAutoBackup").getOrElse("false")
+    }
+
+    val keystorePath = System.getenv("RELEASE_KEYSTORE")
+    signingConfigs {
+        if (!keystorePath.isNullOrBlank()) {
+            create("release") {
+                storeFile = file(keystorePath)
+                storePassword = System.getenv("RELEASE_STORE_PASSWORD")
+                keyAlias = System.getenv("RELEASE_KEY_ALIAS")
+                keyPassword = System.getenv("RELEASE_KEY_PASSWORD")
+                    ?: System.getenv("RELEASE_STORE_PASSWORD")
+            }
+        }
     }
 
     buildTypes {
         release {
             isMinifyEnabled = false
+            signingConfig = signingConfigs.findByName("release")
         }
     }
 
