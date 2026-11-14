@@ -17,4 +17,5 @@ rootProject.name = "fredonne"
 includeBuild("pilmil-core")
 
 include(":core:music")
+include(":shared")
 include(":app")
