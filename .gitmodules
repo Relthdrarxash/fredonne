@@ -1,0 +1,3 @@
+[submodule "pilmil-core"]
+	path = pilmil-core
+	url = https://github.com/Relthdrarxash/pilmil-core.git
