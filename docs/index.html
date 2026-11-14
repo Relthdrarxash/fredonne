@@ -171,43 +171,45 @@ h2 { font-size: clamp(1.6rem, 4vw, 2.2rem); line-height: 1.12; letter-spacing: -
 </section>
 
 <section class="wrap" id="simulateur">
-  <h2>Essayer dans le navigateur</h2>
-  <p class="sub">Simulateur hors-ligne en WebAudio : tapez quelques notes, écoutez le rendu et voyez la transposition écrite pour chaque instrument.</p>
-  <div class="sim-box">
-    <div class="sim-toolbar">
-      <label>Instrument :
-        <select id="fr-inst">
-          <option value="0">Concert (Ut · sons réels)</option>
-          <option value="2">Clarinette (Sib · +2 demi-tons)</option>
-          <option value="9">Saxophone alto (Mib · +9 demi-tons)</option>
-          <option value="7">Cor (Fa · +7 demi-tons)</option>
+  <h2>Essayer l'application en direct</h2>
+  <p class="sub">Projetez-vous dans l'interface mobile de Fredonne : choisissez un instrument, tapez des notes sur le clavier et écoutez le rendu.</p>
+  <div style="display:flex;justify-content:center">
+    <div style="width:min(360px,100%);border:8px solid #1e1d1a;border-radius:32px;background:#faf8f4;color:#1e1d1a;overflow:hidden;box-shadow:0 18px 44px rgba(0,0,0,.22);padding:14px;display:grid;gap:10px">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <strong style="font-size:16px">Fredonne</strong>
+        <span style="font-size:11px;color:#6b675e">100 % hors-ligne</span>
+      </div>
+      <div class="sim-toolbar" style="gap:6px">
+        <select id="fr-inst" style="flex:1;min-width:0;font-size:12px;padding:6px 10px">
+          <option value="0">Concert (Ut)</option>
+          <option value="2">Clarinette (Sib · +2 st)</option>
+          <option value="9">Sax alto (Mib · +9 st)</option>
+          <option value="7">Cor (Fa · +7 st)</option>
         </select>
-      </label>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button type="button" class="primary" id="fr-play">Écouter</button>
-        <button type="button" id="fr-undo">Annuler</button>
-        <button type="button" id="fr-clear">Effacer</button>
+        <button type="button" class="primary" id="fr-play" style="padding:6px 10px;font-size:12px">Écouter</button>
+        <button type="button" id="fr-undo" style="padding:6px 9px;font-size:12px">↩</button>
+        <button type="button" id="fr-clear" style="padding:6px 9px;font-size:12px">Vider</button>
+      </div>
+      <div class="sim-staff" style="background:#fff;border-color:#e0ddd5;padding:6px">
+        <svg id="fr-svg" viewBox="0 0 600 130" width="100%" height="110" aria-label="Portée du simulateur"></svg>
+      </div>
+      <p class="sim-status" id="fr-status" style="font-size:12px;color:#285d4d">4 notes chargées.</p>
+      <div class="piano" id="fr-piano" role="group" aria-label="Clavier d'essai" style="height:105px">
+        <button type="button" class="wkey" data-midi="60" data-dia="0" data-name="Do4">Do4</button>
+        <button type="button" class="wkey" data-midi="62" data-dia="1" data-name="Ré4">Ré</button>
+        <button type="button" class="wkey" data-midi="64" data-dia="2" data-name="Mi4">Mi</button>
+        <button type="button" class="wkey" data-midi="65" data-dia="3" data-name="Fa4">Fa</button>
+        <button type="button" class="wkey" data-midi="67" data-dia="4" data-name="Sol4">Sol</button>
+        <button type="button" class="wkey" data-midi="69" data-dia="5" data-name="La4">La</button>
+        <button type="button" class="wkey" data-midi="71" data-dia="6" data-name="Si4">Si</button>
+        <button type="button" class="wkey" data-midi="72" data-dia="7" data-name="Do5">Do5</button>
+        <button type="button" class="bkey" style="left:12.5%" data-midi="61" data-dia="0" data-sharp="1" data-name="Do#4">Do#</button>
+        <button type="button" class="bkey" style="left:25%" data-midi="63" data-dia="1" data-sharp="1" data-name="Ré#4">Ré#</button>
+        <button type="button" class="bkey" style="left:50%" data-midi="66" data-dia="3" data-sharp="1" data-name="Fa#4">Fa#</button>
+        <button type="button" class="bkey" style="left:62.5%" data-midi="68" data-dia="4" data-sharp="1" data-name="Sol#4">Sol#</button>
+        <button type="button" class="bkey" style="left:75%" data-midi="70" data-dia="5" data-sharp="1" data-name="La#4">La#</button>
       </div>
     </div>
-    <div class="sim-staff">
-      <svg id="fr-svg" viewBox="0 0 600 130" width="100%" height="130" aria-label="Portée du simulateur"></svg>
-    </div>
-    <div class="piano" id="fr-piano" role="group" aria-label="Clavier d'essai">
-      <button type="button" class="wkey" data-midi="60" data-dia="0" data-name="Do4">Do4</button>
-      <button type="button" class="wkey" data-midi="62" data-dia="1" data-name="Ré4">Ré</button>
-      <button type="button" class="wkey" data-midi="64" data-dia="2" data-name="Mi4">Mi</button>
-      <button type="button" class="wkey" data-midi="65" data-dia="3" data-name="Fa4">Fa</button>
-      <button type="button" class="wkey" data-midi="67" data-dia="4" data-name="Sol4">Sol</button>
-      <button type="button" class="wkey" data-midi="69" data-dia="5" data-name="La4">La</button>
-      <button type="button" class="wkey" data-midi="71" data-dia="6" data-name="Si4">Si</button>
-      <button type="button" class="wkey" data-midi="72" data-dia="7" data-name="Do5">Do5</button>
-      <button type="button" class="bkey" style="left:12.5%" data-midi="61" data-dia="0" data-sharp="1" data-name="Do#4">Do#</button>
-      <button type="button" class="bkey" style="left:25%" data-midi="63" data-dia="1" data-sharp="1" data-name="Ré#4">Ré#</button>
-      <button type="button" class="bkey" style="left:50%" data-midi="66" data-dia="3" data-sharp="1" data-name="Fa#4">Fa#</button>
-      <button type="button" class="bkey" style="left:62.5%" data-midi="68" data-dia="4" data-sharp="1" data-name="Sol#4">Sol#</button>
-      <button type="button" class="bkey" style="left:75%" data-midi="70" data-dia="5" data-sharp="1" data-name="La#4">La#</button>
-    </div>
-    <p class="sim-status" id="fr-status">4 notes d'exemple chargées. Appuyez sur une touche pour ajouter une note.</p>
   </div>
 </section>
 <script>
