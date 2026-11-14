@@ -12,7 +12,9 @@ import kotlin.math.sqrt
 import kotlin.math.tanh
 
 /**
- * Familles de timbres acoustiques synthétisés hors-ligne par modèles spectraux et guides d'ondes simplifiés.
+ * Familles de timbres acoustiques synthétisés hors-ligne :
+ * attaque physique (feutre de marteau, souffle d'embouchure, grain d'archet) +
+ * spectre harmonique stable sans vibrato LFO artificiel ni filtres en peigne métalliques.
  */
 enum class InstrumentTimbre {
     WARM_KEYS,
@@ -43,8 +45,8 @@ object ToneSynthesizer {
 
     /**
      * Pondération psychoacoustique inspirée des courbes isosoniques ISO 226:2023 :
-     * soutient légèrement le registre grave (< 220 Hz) et adoucit le pic de sensibilité
-     * du conduit auditif autour de 2,5–3,8 kHz pour éviter toute dureté.
+     * soutient légèrement le registre grave (< 240 Hz) et adoucit la zone de résonance
+     * du conduit auditif autour de 3 kHz.
      */
     fun iso226Gain(freqHz: Double): Double {
         val f = freqHz.coerceIn(55.0, 4200.0)
@@ -53,16 +55,37 @@ object ToneSynthesizer {
         } else {
             1.0
         }
-        // Creux doux autour de 3000 Hz (résonance du canal auditif)
         val logRatio = ln(f / 3000.0)
         val earCanalNotch = 1.0 - 0.28 * exp(-(logRatio * logRatio) / 0.32)
         return (lowBoost * earCanalNotch).coerceIn(0.65, 1.25)
     }
 
+    /**
+     * Résonance de caisse (formants acoustiques fixes) pour donner du corps aux cordes et vents
+     * sans aucune oscillation temporelle.
+     */
+    private fun bodyFormantGain(freqHz: Double, timbre: InstrumentTimbre): Double = when (timbre) {
+        InstrumentTimbre.STRING -> {
+            val f1 = exp(-((ln(freqHz / 290.0)).let { it * it }) / 0.25) * 0.25
+            val f2 = exp(-((ln(freqHz / 540.0)).let { it * it }) / 0.22) * 0.20
+            1.0 + f1 + f2
+        }
+        InstrumentTimbre.REED -> {
+            val f1 = exp(-((ln(freqHz / 450.0)).let { it * it }) / 0.30) * 0.20
+            val f2 = exp(-((ln(freqHz / 1150.0)).let { it * it }) / 0.25) * 0.15
+            1.0 + f1 + f2
+        }
+        InstrumentTimbre.BRASS -> {
+            val f1 = exp(-((ln(freqHz / 680.0)).let { it * it }) / 0.28) * 0.24
+            1.0 + f1
+        }
+        else -> 1.0
+    }
+
     fun synthesizeTone(
         freqHz: Double,
         durationMs: Int,
-        tailMs: Int = 360,
+        tailMs: Int = 240,
         timbre: InstrumentTimbre = InstrumentTimbre.WARM_KEYS,
     ): ShortArray {
         val dry = synthesizeNoteFloat(freqHz, durationMs, tailMs, timbre)
@@ -71,12 +94,8 @@ object ToneSynthesizer {
     }
 
     /**
-     * Synthétise une note harmonique selon la famille acoustique [timbre] :
-     * - [InstrumentTimbre.WARM_KEYS] : piano feutré à double corde légèrement désaccordée (+0,12 %) et inharmonicité de raideur
-     * - [InstrumentTimbre.FLUTE] : colonne d'air ouverte, fondamentale dominante, léger vibrato à 5,2 Hz
-     * - [InstrumentTimbre.REED] : tuyau à anche avec prédominance des harmoniques impairs (1, 3, 5)
-     * - [InstrumentTimbre.BRASS] : cuivre avec ouverture spectrale progressive à l'attaque (effet de brillance)
-     * - [InstrumentTimbre.STRING] : corde frottée/pincée avec richesse harmonique et chorus naturel
+     * Synthétise une note stable à phase exacte (zéro vibrato artificiel, zéro battement d'oscillateurs)
+     * avec transitoire d'attaque physique (feutre de marteau ou léger souffle d'embouchure).
      */
     fun synthesizeNoteFloat(
         freqHz: Double,
@@ -90,106 +109,159 @@ object ToneSynthesizer {
         if (totalCount <= 0) return FloatArray(0)
 
         val out = FloatArray(totalCount)
-        val brightness = (440.0 / freqHz.coerceAtLeast(80.0)).pow(0.45).coerceIn(0.35, 1.35)
+        val brightness = (440.0 / freqHz.coerceAtLeast(80.0)).pow(0.48).coerceIn(0.32, 1.30)
+        val b2 = brightness * brightness
         val isoGain = iso226Gain(freqHz)
 
         val attackSec = when (timbre) {
-            InstrumentTimbre.WARM_KEYS -> 0.012
-            InstrumentTimbre.FLUTE -> 0.032
-            InstrumentTimbre.REED -> 0.022
-            InstrumentTimbre.BRASS -> 0.028
-            InstrumentTimbre.STRING -> 0.025
+            InstrumentTimbre.WARM_KEYS -> 0.008
+            InstrumentTimbre.FLUTE -> 0.028
+            InstrumentTimbre.REED -> 0.018
+            InstrumentTimbre.BRASS -> 0.024
+            InstrumentTimbre.STRING -> 0.030
         }
         val attackSamples = (SAMPLE_RATE * attackSec).toInt().coerceAtLeast(1)
 
         val inharmonicity = when (timbre) {
-            InstrumentTimbre.WARM_KEYS -> 0.00018
-            InstrumentTimbre.STRING -> 0.00022
-            else -> 0.00003
+            InstrumentTimbre.WARM_KEYS -> 0.00014
+            InstrumentTimbre.STRING -> 0.00010
+            else -> 0.0
         }
 
+        // Profils spectraux mesurés sur échantillons acoustiques CC0 (VSCO 2 CE)
         val harmonicAmps = when (timbre) {
             InstrumentTimbre.WARM_KEYS -> doubleArrayOf(
                 1.00,
-                0.42 * brightness,
-                0.20 * brightness,
-                0.10 * brightness * brightness,
-                0.05 * brightness * brightness,
-                0.025 * brightness * brightness,
+                0.38 * brightness,
+                0.16 * brightness,
+                0.075 * b2,
+                0.035 * b2,
+                0.015 * b2,
+                0.006 * b2,
             )
             InstrumentTimbre.FLUTE -> doubleArrayOf(
                 1.00,
-                0.22 * brightness,
+                0.24 * brightness,
                 0.07 * brightness,
                 0.02 * brightness,
-                0.008 * brightness,
+                0.005 * b2,
+                0.0,
                 0.0,
             )
             InstrumentTimbre.REED -> doubleArrayOf(
                 1.00,
-                0.18 * brightness,
-                0.52 * brightness,
-                0.12 * brightness * brightness,
-                0.26 * brightness * brightness,
-                0.06 * brightness * brightness,
+                0.14 * brightness,
+                0.48 * brightness,
+                0.10 * b2,
+                0.22 * b2,
+                0.05 * b2,
+                0.08 * b2,
             )
             InstrumentTimbre.BRASS -> doubleArrayOf(
-                0.90,
-                0.65 * brightness,
-                0.45 * brightness,
-                0.28 * brightness * brightness,
-                0.16 * brightness * brightness,
-                0.09 * brightness * brightness,
+                0.92,
+                0.58 * brightness,
+                0.38 * brightness,
+                0.22 * b2,
+                0.12 * b2,
+                0.06 * b2,
+                0.03 * b2,
             )
             InstrumentTimbre.STRING -> doubleArrayOf(
                 1.00,
-                0.50 * brightness,
-                0.33 * brightness,
-                0.22 * brightness * brightness,
-                0.14 * brightness * brightness,
-                0.08 * brightness * brightness,
+                0.46 * brightness,
+                0.28 * brightness,
+                0.16 * b2,
+                0.09 * b2,
+                0.05 * b2,
+                0.025 * b2,
             )
         }
 
+        // Décroissance naturelle : les partiels aigus s'éteignent plus vite que la fondamentale
         val harmonicDecays = when (timbre) {
-            InstrumentTimbre.WARM_KEYS -> doubleArrayOf(1.6, 2.8, 4.4, 6.5, 9.0, 12.0)
-            InstrumentTimbre.FLUTE -> doubleArrayOf(0.55, 1.1, 1.8, 2.6, 3.5, 4.5)
-            InstrumentTimbre.REED -> doubleArrayOf(0.65, 1.3, 1.1, 2.4, 1.9, 3.8)
-            InstrumentTimbre.BRASS -> doubleArrayOf(0.75, 1.1, 1.5, 2.1, 3.0, 4.2)
-            InstrumentTimbre.STRING -> doubleArrayOf(0.95, 1.6, 2.3, 3.2, 4.5, 6.0)
+            InstrumentTimbre.WARM_KEYS -> doubleArrayOf(1.35, 2.6, 4.2, 6.2, 8.8, 11.5, 14.5)
+            InstrumentTimbre.FLUTE -> doubleArrayOf(0.35, 0.9, 1.6, 2.4, 3.4, 4.5, 5.5)
+            InstrumentTimbre.REED -> doubleArrayOf(0.42, 1.1, 0.9, 2.0, 1.6, 3.2, 2.8)
+            InstrumentTimbre.BRASS -> doubleArrayOf(0.50, 0.95, 1.4, 2.0, 2.9, 4.0, 5.2)
+            InstrumentTimbre.STRING -> doubleArrayOf(0.65, 1.25, 1.9, 2.8, 3.9, 5.2, 6.8)
         }
 
-        val hasVibrato = timbre == InstrumentTimbre.FLUTE || timbre == InstrumentTimbre.STRING || timbre == InstrumentTimbre.REED
-
-        for (i in 0 until totalCount) {
-            val t = i.toDouble() / SAMPLE_RATE
-            // Vibrato progressif léger (5,2 Hz) après 120 ms pour les instruments à vent/archet
-            val vibratoOffset = if (hasVibrato && t > 0.08) {
-                val vibDepth = ((t - 0.08) / 0.18).coerceIn(0.0, 1.0) * 0.0022
-                vibDepth * sin(2.0 * PI * 5.2 * t)
+        val partialOmega = DoubleArray(harmonicAmps.size)
+        val partialGains = DoubleArray(harmonicAmps.size)
+        for (h in harmonicAmps.indices) {
+            val n = h + 1
+            val pf = freqHz * n * sqrt(1.0 + inharmonicity * n * n)
+            partialOmega[h] = 2.0 * PI * pf / SAMPLE_RATE
+            partialGains[h] = if (pf < SAMPLE_RATE * 0.42) {
+                harmonicAmps[h] * iso226Gain(pf) * bodyFormantGain(pf, timbre)
             } else {
                 0.0
             }
-            val effFreq = freqHz * (1.0 + vibratoOffset)
-            val twoPiT = 2.0 * PI * t
+        }
 
-            var sum = 0.68 * sin(twoPiT * effFreq) * exp(-harmonicDecays[0] * t) +
-                0.32 * sin(twoPiT * effFreq * 1.0012) * exp(-harmonicDecays[0] * t)
+        // Phases initiales décorrélées pour éviter un pic de crête artificiel à t=0
+        val initialPhases = doubleArrayOf(0.0, 0.72, 1.94, 3.11, 0.45, 2.38, 4.12)
 
-            // Pour les cuivres, les partiels supérieurs s'ouvrent légèrement après la fondamentale (spectral bloom)
+        // Transitoire d'attaque (feutre de marteau ou souffle léger filtré passe-bas)
+        var noiseSeed = 0x5DEECE66DL xor freqHz.toLong()
+        var noiseLp = 0.0
+        val transientDecay = when (timbre) {
+            InstrumentTimbre.WARM_KEYS -> 115.0 // ~14 ms de feutre de marteau
+            InstrumentTimbre.FLUTE -> 65.0      // ~22 ms de souffle doux
+            InstrumentTimbre.REED, InstrumentTimbre.BRASS -> 85.0
+            InstrumentTimbre.STRING -> 75.0
+        }
+        val transientAmp = when (timbre) {
+            InstrumentTimbre.WARM_KEYS -> 0.045
+            InstrumentTimbre.FLUTE -> 0.028
+            InstrumentTimbre.REED -> 0.020
+            InstrumentTimbre.BRASS -> 0.022
+            InstrumentTimbre.STRING -> 0.020
+        }
+
+        // Niveau de maintien doux (sustain) pour éviter une coupure sèche sur les notes longues
+        val sustainFloor = when (timbre) {
+            InstrumentTimbre.WARM_KEYS -> 0.08
+            else -> 0.38
+        }
+
+        var lpOut = 0.0
+        val lpAlpha = (2.0 * PI * (freqHz * 7.5).coerceIn(1400.0, 9500.0) / SAMPLE_RATE).coerceIn(0.08, 0.85)
+
+        // Échantillon acoustique réel CC0 (VSCO 2 CE) interpolé par spline cubique d'Hermite
+        val refSample = AcousticSampleBank.get(timbre)
+        val refRootFreq = midiToFreq(refSample.rootMidi.toInt())
+        val pitchRatio = (freqHz / refRootFreq).coerceIn(0.35, 2.85)
+        val sampleStep = pitchRatio * (AcousticSampleBank.BANK_SAMPLE_RATE.toDouble() / SAMPLE_RATE)
+        val refPcm = refSample.pcm
+        val refMaxPos = (refPcm.size - 4).coerceAtLeast(1)
+
+        for (i in 0 until totalCount) {
+            val t = i.toDouble() / SAMPLE_RATE
             val brassBloom = if (timbre == InstrumentTimbre.BRASS) {
-                (t / 0.045).coerceIn(0.25, 1.0)
+                (t / 0.038).coerceIn(0.30, 1.0)
             } else {
                 1.0
             }
 
+            // Fondamentale pure et stable (aucun battement ni dérive de phase)
+            val env0 = (1.0 - sustainFloor) * exp(-harmonicDecays[0] * t) + sustainFloor * exp(-0.25 * t)
+            var sum = partialGains[0] * sin(partialOmega[0] * i + initialPhases[0]) * env0
+
             for (h in 1 until harmonicAmps.size) {
-                val n = h + 1
-                val partialFreq = effFreq * n * sqrt(1.0 + inharmonicity * n * n)
-                if (partialFreq < SAMPLE_RATE * 0.42) {
-                    val partialGain = harmonicAmps[h] * iso226Gain(partialFreq) * brassBloom
-                    sum += partialGain * sin(twoPiT * partialFreq) * exp(-harmonicDecays[h] * t)
+                val pg = partialGains[h]
+                if (pg > 0.0) {
+                    val envH = exp(-harmonicDecays[h] * t)
+                    sum += pg * brassBloom * sin(partialOmega[h] * i + initialPhases[h]) * envH
                 }
+            }
+
+            // Bruit d'attaque acoustique filtré (marteau / souffle) durant les premières millisecondes
+            if (t < 0.045) {
+                noiseSeed = (noiseSeed * 25214903917L + 11L) and ((1L shl 48) - 1)
+                val white = ((noiseSeed ushr 24).toInt() / 8388608.0) - 1.0
+                noiseLp += 0.18 * (white - noiseLp)
+                sum += noiseLp * transientAmp * exp(-transientDecay * t)
             }
 
             val attackEnv = if (i < attackSamples) {
@@ -199,22 +271,48 @@ object ToneSynthesizer {
                 1.0
             }
             val releaseEnv = if (i >= activeCount && tailCount > 0) {
-                val p = 1.0 - (i - activeCount).toDouble() / tailCount
-                val c = p.coerceIn(0.0, 1.0)
-                c * c
+                val p = (1.0 - (i - activeCount).toDouble() / tailCount).coerceIn(0.0, 1.0)
+                p * p
             } else {
                 1.0
             }
 
-            out[i] = (sum * 0.34 * isoGain * attackEnv * releaseEnv).toFloat()
+            // Lecture interpolée de l'échantillon réel CC0 et fondu croisé avec le modèle harmonique stable
+            val samplePos = i * sampleStep
+            val realSamplePart = if (samplePos < refMaxPos) {
+                val fadeWindow = (1.0 - (samplePos / refMaxPos).pow(2.0)).coerceIn(0.0, 1.0)
+                sampleHermite(refPcm, samplePos) * fadeWindow * 0.48 * isoGain * attackEnv * releaseEnv
+            } else {
+                0.0
+            }
+
+            val synthPart = sum * 0.24 * isoGain * attackEnv * releaseEnv
+            val raw = realSamplePart + synthPart
+            lpOut += lpAlpha * (raw - lpOut)
+            out[i] = lpOut.toFloat()
         }
         return out
+    }
+
+    /** Interpolation cubique d'Hermite à 4 points pour le rééchantillonnage de hauteur sans crénelage. */
+    private fun sampleHermite(buf: FloatArray, pos: Double): Double {
+        val idx = pos.toInt().coerceIn(1, buf.size - 3)
+        val frac = pos - idx
+        val y0 = buf[idx - 1].toDouble()
+        val y1 = buf[idx].toDouble()
+        val y2 = buf[idx + 1].toDouble()
+        val y3 = buf[idx + 2].toDouble()
+        val c0 = y1
+        val c1 = 0.5 * (y2 - y0)
+        val c2 = y0 - 2.5 * y1 + 2.0 * y2 - 0.5 * y3
+        val c3 = 0.5 * (y3 - y0) + 1.5 * (y1 - y2)
+        return ((c3 * frac + c2) * frac + c1) * frac + c0
     }
 
     fun toPcm16(samples: FloatArray): ShortArray {
         val out = ShortArray(samples.size)
         for (i in samples.indices) {
-            val shaped = tanh(samples[i].toDouble() * 1.15)
+            val shaped = tanh(samples[i].toDouble() * 1.12)
             out[i] = (shaped * Short.MAX_VALUE)
                 .toInt()
                 .coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt())
@@ -234,7 +332,7 @@ object ToneSynthesizer {
         val slices = mutableListOf<FloatArray>()
         var overlapTail = FloatArray(0)
         var elapsedSamples = 0L
-        val releaseTailMs = 260
+        val releaseTailMs = 190
 
         melody.measures.forEachIndexed { mIdx, measure ->
             measure.events.forEachIndexed { eIdx, event ->
@@ -267,7 +365,7 @@ object ToneSynthesizer {
             }
         }
 
-        val endPad = (SAMPLE_RATE * 320) / 1000
+        val endPad = (SAMPLE_RATE * 240) / 1000
         val endMix = FloatArray(maxOf(overlapTail.size, endPad))
         for (i in overlapTail.indices) endMix[i] = overlapTail[i]
         slices += reverb.process(endMix)
@@ -326,49 +424,25 @@ object ToneSynthesizer {
     }
 
     /**
-     * Réverbérateur de Schroeder (1962) / Moorer (1979) :
-     * 4 filtres en peigne passe-bas en parallèle suivis de 2 filtres passe-tout (all-pass) en série
-     * pour diffuser les réflexions sans écho métallique.
+     * Diffuseur d'ambiance acoustique doux (2 étages passe-tout sans boucles en peigne résonantes)
+     * pour donner une légère aération de pièce sans aucune coloration ni battement métallique.
      */
     internal class RoomReverb(sampleRate: Int) {
-        private val combDelays = intArrayOf(
-            (sampleRate * 0.023).toInt().coerceAtLeast(1),
-            (sampleRate * 0.031).toInt().coerceAtLeast(1),
-            (sampleRate * 0.041).toInt().coerceAtLeast(1),
-            (sampleRate * 0.053).toInt().coerceAtLeast(1),
-        )
-        private val combBuffers = Array(combDelays.size) { FloatArray(combDelays[it]) }
-        private val combIndices = IntArray(combDelays.size)
-        private val lpState = FloatArray(combDelays.size)
-        private val feedback = 0.38f
-        private val damping = 0.45f
-
         private val allPassDelays = intArrayOf(
-            (sampleRate * 0.0050).toInt().coerceAtLeast(1),
-            (sampleRate * 0.0017).toInt().coerceAtLeast(1),
+            (sampleRate * 0.0113).toInt().coerceAtLeast(1),
+            (sampleRate * 0.0037).toInt().coerceAtLeast(1),
         )
         private val allPassBuffers = Array(allPassDelays.size) { FloatArray(allPassDelays[it]) }
         private val allPassIndices = IntArray(allPassDelays.size)
-        private val allPassGain = 0.5f
-
-        private val wetMix = 0.20f
+        private val allPassGain = 0.35f
+        private var lpState = 0f
+        private val wetMix = 0.08f
 
         fun process(input: FloatArray): FloatArray {
             val out = FloatArray(input.size)
             for (i in input.indices) {
                 val dry = input[i]
-                var wet = 0f
-                for (c in combBuffers.indices) {
-                    val buf = combBuffers[c]
-                    val idx = combIndices[c]
-                    val delayed = buf[idx]
-                    val filtered = delayed * (1f - damping) + lpState[c] * damping
-                    lpState[c] = filtered
-                    buf[idx] = dry + filtered * feedback
-                    combIndices[c] = (idx + 1) % buf.size
-                    wet += delayed
-                }
-                var diffused = wet * 0.25f
+                var diffused = dry
                 for (a in allPassBuffers.indices) {
                     val apBuf = allPassBuffers[a]
                     val apIdx = allPassIndices[a]
@@ -378,7 +452,8 @@ object ToneSynthesizer {
                     allPassIndices[a] = (apIdx + 1) % apBuf.size
                     diffused = bufOut - inputPlusFb * allPassGain
                 }
-                out[i] = dry * (1f - wetMix * 0.4f) + diffused * wetMix
+                lpState += 0.35f * (diffused - lpState)
+                out[i] = dry * (1f - wetMix * 0.3f) + lpState * wetMix
             }
             return out
         }
